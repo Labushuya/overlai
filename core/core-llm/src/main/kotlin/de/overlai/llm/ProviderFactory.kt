@@ -2,8 +2,8 @@ package de.overlai.llm
 
 import de.overlai.llm.providers.OpenAiCompatProvider
 import de.overlai.llm.providers.ProviderRegistry
-import okhttp3.OkHttpClient
 import kotlinx.serialization.json.Json
+import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
 // CHANGE-MARKER v0.1.0: Provider-Abstraktion (siehe CHANGELOG.md)

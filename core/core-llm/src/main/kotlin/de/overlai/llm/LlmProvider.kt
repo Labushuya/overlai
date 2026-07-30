@@ -22,8 +22,7 @@ interface LlmProvider {
         mimeType: String,
         apiKey: String,
         model: String = config.defaultModel,
-    ): String =
-        throw UnsupportedOperationException("${config.displayName} unterstützt keine Transcription")
+    ): String = throw UnsupportedOperationException("${config.displayName} unterstützt keine Transcription")
 }
 
 // Fehler-Hierarchie, die die UI unterscheiden kann (Key falsch vs. Netz vs. Rate-Limit).

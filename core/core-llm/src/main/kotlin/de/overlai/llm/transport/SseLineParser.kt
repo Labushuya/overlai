@@ -11,7 +11,7 @@ object SseLineParser {
     // Ergebnis einer geparsten SSE-Zeile.
     sealed interface Event {
         data class Data(
-        val json: String,
+            val json: String,
         ) : Event
 
         data object Done : Event

@@ -70,9 +70,9 @@ fun AppNavHost(
 
 // Minimaler ViewModelProvider.Factory-Helfer für parametrisierte ViewModels.
 private inline fun <reified VM : ViewModel> simpleFactory(
-    crossinline create: () -> VM,
+    crossinline builder: () -> VM,
 ): ViewModelProvider.Factory =
     object : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T = create() as T
+        override fun <T : ViewModel> create(modelClass: Class<T>): T = builder() as T
     }
