@@ -1,67 +1,78 @@
 package de.overlai.app
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import de.overlai.feature.chat.ChatScreen
+import de.overlai.feature.chat.ChatViewModel
+import de.overlai.feature.onboarding.OnboardingScreen
+import de.overlai.feature.onboarding.OnboardingViewModel
+import de.overlai.llm.ProviderFactory
+import de.overlai.llm.providers.ProviderRegistry
+import de.overlai.security.KeyVault
 
-// CHANGE-MARKER v0.1.0: Initiales Projektgrundgerüst (siehe CHANGELOG.md)
-// Zentraler Navigations-Graph. Routen sind hier als String-Konstanten definiert;
-// die einzelnen Feature-Screens werden ab M1/M2 eingehängt (Chat, Onboarding,
-// Permission Hub, Updater). In v0.1.0 nur ein Home-Platzhalter, damit die
-// M0-Pipeline (Build/Signing/Update) an einem lauffähigen APK verifizierbar ist.
+// CHANGE-MARKER v0.1.0: Navigation (siehe CHANGELOG.md)
+// Zentraler Navigations-Graph. Die ViewModels haben bewusst einfache
+// Konstruktoren (core-* ohne DI-Annotationen); hier werden sie über eine
+// kleine ViewModelProvider.Factory mit den DI-bereitgestellten Bausteinen erzeugt.
 object Routes {
-    const val HOME = "home"
     const val ONBOARDING = "onboarding"
     const val CHAT = "chat"
-    const val PERMISSIONS = "permissions"
 }
 
 @Composable
 fun AppNavHost(
+    keyVault: KeyVault,
+    providerFactory: ProviderFactory,
     navController: NavHostController,
     modifier: Modifier = Modifier,
 ) {
     NavHost(
         navController = navController,
-        startDestination = Routes.HOME,
+        startDestination = Routes.CHAT,
         modifier = modifier,
     ) {
-        composable(Routes.HOME) {
-            HomePlaceholder(
-                onOpenChat = { navController.navigate(Routes.CHAT) },
-                onOpenPermissions = { navController.navigate(Routes.PERMISSIONS) },
+        composable(Routes.CHAT) {
+            val vm =
+                viewModel<ChatViewModel>(
+                    factory =
+                        simpleFactory {
+                            ChatViewModel(
+                                providerConfig = ProviderRegistry.OPENAI,
+                                providerFactory = providerFactory,
+                                keyVault = keyVault,
+                            )
+                        },
+                )
+            ChatScreen(
+                viewModel = vm,
+                onOpenOnboarding = { navController.navigate(Routes.ONBOARDING) },
             )
         }
-        // TODO(M1): composable(Routes.ONBOARDING) { OnboardingScreen(...) }
-        // TODO(M1): composable(Routes.CHAT) { ChatScreen(...) }
-        // TODO(M2): composable(Routes.PERMISSIONS) { PermissionHubScreen(...) }
+
+        composable(Routes.ONBOARDING) {
+            val vm =
+                viewModel<OnboardingViewModel>(
+                    factory = simpleFactory { OnboardingViewModel(keyVault) },
+                )
+            OnboardingScreen(
+                viewModel = vm,
+                onDone = { navController.popBackStack() },
+            )
+        }
     }
 }
 
-// Minimaler Home-Screen für v0.1.0 (M0-Bootstrap). Wird in M1 durch den echten
-// Einstieg (Onboarding-Check -> Chat) ersetzt.
-@Composable
-private fun HomePlaceholder(
-    onOpenChat: () -> Unit,
-    onOpenPermissions: () -> Unit,
-) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
-    ) {
-        Text("OverlAI")
-        Button(onClick = onOpenChat) { Text("Chat") }
-        Button(onClick = onOpenPermissions) { Text("Berechtigungen prüfen") }
+// Minimaler ViewModelProvider.Factory-Helfer für parametrisierte ViewModels.
+private inline fun <reified VM : ViewModel> simpleFactory(
+    crossinline create: () -> VM,
+): ViewModelProvider.Factory =
+    object : ViewModelProvider.Factory {
+        @Suppress("UNCHECKED_CAST")
+        override fun <T : ViewModel> create(modelClass: Class<T>): T = create() as T
     }
-}
