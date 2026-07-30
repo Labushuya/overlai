@@ -1,7 +1,13 @@
 package de.overlai.app
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -12,6 +18,10 @@ import de.overlai.feature.chat.ChatScreen
 import de.overlai.feature.chat.ChatViewModel
 import de.overlai.feature.onboarding.OnboardingScreen
 import de.overlai.feature.onboarding.OnboardingViewModel
+import de.overlai.feature.permissions.PermissionChecks
+import de.overlai.feature.permissions.PermissionHubScreen
+import de.overlai.feature.permissions.PermissionHubState
+import de.overlai.feature.permissions.PermissionItem
 import de.overlai.llm.ProviderFactory
 import de.overlai.llm.providers.ProviderRegistry
 import de.overlai.security.KeyVault
@@ -23,6 +33,7 @@ import de.overlai.security.KeyVault
 object Routes {
     const val ONBOARDING = "onboarding"
     const val CHAT = "chat"
+    const val PERMISSIONS = "permissions"
 }
 
 @Composable
@@ -63,6 +74,50 @@ fun AppNavHost(
             OnboardingScreen(
                 viewModel = vm,
                 onDone = { navController.popBackStack() },
+            )
+        }
+
+        composable(Routes.PERMISSIONS) {
+            val context = LocalContext.current
+            var state by remember { mutableStateOf(PermissionHubState()) }
+            // Bei jedem Betreten neu prüfen (Nutzer kommt oft aus den Settings zurück).
+            LaunchedEffect(Unit) {
+                state =
+                    PermissionHubState(
+                        items =
+                            listOf(
+                                PermissionItem(
+                                    id = "api_key",
+                                    title = "API-Key hinterlegt",
+                                    rationale = "OverlAI braucht deinen Provider-Key (BYOK), um Anfragen zu senden.",
+                                    granted = keyVault.hasKey(ProviderRegistry.OPENAI.id),
+                                    fixIsSystemSetting = false,
+                                ),
+                                PermissionItem(
+                                    id = "install_packages",
+                                    title = "Unbekannte Apps installieren",
+                                    rationale = "Nötig, damit der In-App-Updater neue Versionen installieren kann.",
+                                    granted = PermissionChecks.canInstallPackages(context),
+                                ),
+                                PermissionItem(
+                                    id = "notifications",
+                                    title = "Benachrichtigungen",
+                                    rationale = "Für Update- und Download-Hinweise.",
+                                    granted = PermissionChecks.notificationsEnabled(context),
+                                ),
+                            ),
+                    )
+            }
+            PermissionHubScreen(
+                state = state,
+                onFix = { item ->
+                    when (item.id) {
+                        "api_key" -> navController.navigate(Routes.ONBOARDING)
+                        "install_packages" ->
+                            context.startActivity(PermissionChecks.installUnknownAppsIntent(context))
+                        else -> context.startActivity(PermissionChecks.appDetailsIntent(context))
+                    }
+                },
             )
         }
     }
