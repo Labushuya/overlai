@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- CHANGE-MARKER v0.1.0: Initiales Projektgrundgerüst (siehe CHANGELOG.md) -->
+<resources>
+    <string name="app_name">OverlAI</string>
+    <!-- Menü-Eintrag im Text-Selektions-Kontextmenü jeder App. -->
+    <string name="action_process_text">OverlAI</string>
+</resources>

@@ -1,0 +1,16 @@
+# CHANGE-MARKER v0.1.0: Initiales Projektgrundgerüst (siehe CHANGELOG.md)
+# Deterministische Zeilenenden. Quellcode LF (CI läuft auf Linux).
+* text=auto eol=lf
+
+# gradlew MUSS LF sein (wird auf Linux-Runnern als sh ausgeführt).
+gradlew text eol=lf
+*.sh text eol=lf
+
+# Windows-Skripte CRLF.
+*.bat text eol=crlf
+
+# Binär.
+*.jar binary
+*.png binary
+*.jks binary
+*.keystore binary

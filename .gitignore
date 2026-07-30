@@ -1,0 +1,39 @@
+# CHANGE-MARKER v0.1.0: Initiales Projektgrundgerüst (siehe CHANGELOG.md)
+# OverlAI — .gitignore. Generierte Artefakte und v.a. SECRETS nie committen.
+# Der Signing-Key ist load-bearing für den Self-Updater (gleiche Signatur oder
+# INSTALL_FAILED_UPDATE_INCOMPATIBLE) — er lebt NUR als GitHub-Secret, nie im Repo.
+
+# ------------------------- Secrets (NIE committen) ----------------
+*.jks
+*.keystore
+keystore.properties
+key.properties
+local.properties
+*.env
+secrets.*
+
+# ------------------------- Gradle / Build -------------------------
+.gradle/
+build/
+**/build/
+!build-logic/           # build-logic ist Quellcode, nicht Artefakt
+build-logic/**/build/
+captures/
+.cxx/
+
+# ------------------------- IDE / Editor ---------------------------
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.hprof
+
+# ------------------------- OS -------------------------------------
+.DS_Store
+Thumbs.db
+
+# ------------------------- Test / Coverage ------------------------
+# Reports sind CI-Artefakte, nicht im Repo.
+**/reports/
+**/kover/

@@ -1,0 +1,13 @@
+// :feature-share — Entry-Points ACTION_PROCESS_TEXT + ACTION_SEND (Text/Bild).
+// Der MVP-Kern: null Runtime-Permissions, null Policy-Risiko.
+plugins {
+    alias(libs.plugins.overlai.android.feature)
+}
+
+dependencies {
+    implementation(project(":core:core-ui"))
+    implementation(project(":core:core-common"))
+    implementation(project(":core:core-llm"))
+    implementation(project(":core:core-security"))
+    implementation(project(":feature:feature-ocr"))
+}

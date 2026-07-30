@@ -1,0 +1,13 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "simple",
+  "include-component-in-tag": false,
+  "tag-separator": "",
+  "packages": {
+    ".": {
+      "package-name": "overlai",
+      "changelog-path": "CHANGELOG.md"
+    }
+  },
+  "$comment": "release-type 'simple' pflegt CHANGELOG + Tag (v*). Der Tag triggert release.yml, das die signierte APK baut. Version lebt in .release-please-manifest.json."
+}

@@ -1,0 +1,44 @@
+# CHANGE-MARKER v0.1.0: Initiales Projektgrundgerüst (siehe CHANGELOG.md)
+# OverlAI — CodeQL SAST für Kotlin/Java. PR + wöchentlicher Scan.
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "27 4 * * 1"   # montags 04:27 UTC (Off-Peak-Minute)
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: Analyze (java-kotlin)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Java 21 (Temurin)
+        uses: actions/setup-java@3a4f6e1af504cf6a31855fa899c6aa5355ba6c12 # v4.7.0
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3.2.2
+
+      - name: CodeQL initialisieren
+        uses: github/codeql-action/init@main
+        with:
+          languages: java-kotlin
+
+      # Manueller Build, damit CodeQL den Kotlin-Bytecode sieht.
+      - name: Build für Analyse
+        run: ./gradlew :app:assembleDebug
+
+      - name: CodeQL-Analyse
+        uses: github/codeql-action/analyze@main

@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- CHANGE-MARKER v0.1.0: Initiales Projektgrundgerüst (siehe CHANGELOG.md) -->
+<!--
+  OverlAI — App-Manifest (Phase 1 / MVP).
+  Bewusst MINIMAL: nur INTERNET (Provider-Calls), REQUEST_INSTALL_PACKAGES
+  (In-App-Updater) und POST_NOTIFICATIONS (Update-/Download-Hinweis).
+  KEIN Overlay/Accessibility/Foreground-Service in Phase 1 — die kommen in
+  Phase 2 (feature-overlay/feature-screenread) mit eigenem Manifest-Merge.
+
+  allowBackup=false: BYOK-Keys liegen im Keystore; kein Cloud-Backup der App-Daten.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- In-App-Updater: APK-Installation aus der App heraus (Nutzer muss die
+         Quelle einmalig freigeben; der OS-Install-Dialog erscheint pro Update). -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Android 13+: Laufzeit-Prompt für Benachrichtigungen. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application
+        android:name=".OverlAiApplication"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.OverlAI"
+        tools:targetApi="36">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.OverlAI">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+          ACTION_PROCESS_TEXT: "OverlAI" erscheint im Text-Selektions-Menü JEDER App.
+          Der Kern-MVP-Entry-Point. android:label = der Menü-Eintrag.
+        -->
+        <activity
+            android:name="de.overlai.feature.share.ProcessTextActivity"
+            android:exported="true"
+            android:label="@string/action_process_text"
+            android:theme="@style/Theme.OverlAI.Transparent">
+            <intent-filter>
+                <action android:name="android.intent.action.PROCESS_TEXT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+
+        <!--
+          Share-Target: Text/Bild aus jeder App in OverlAI teilen (System-Share-Sheet).
+        -->
+        <activity
+            android:name="de.overlai.feature.share.ShareReceiverActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.OverlAI.Transparent">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+        </activity>
+
+        <!-- FileProvider für den APK-Download des Updaters (content:// statt file://). -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+    </application>
+</manifest>

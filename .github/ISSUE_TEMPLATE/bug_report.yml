@@ -1,0 +1,43 @@
+name: Bug Report
+description: Einen Fehler in OverlAI melden
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Danke für den Report! Bitte **keine** Sicherheitslücken hier melden —
+        siehe [SECURITY.md](../SECURITY.md).
+  - type: input
+    id: version
+    attributes:
+      label: OverlAI-Version
+      placeholder: "z. B. v0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Gerät / Android-Version
+      placeholder: "z. B. Pixel 8, Android 15"
+    validations:
+      required: true
+  - type: input
+    id: provider
+    attributes:
+      label: Betroffener Provider (falls relevant)
+      placeholder: "z. B. OpenAI / Anthropic — KEINEN API-Key einfügen!"
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduktionsschritte
+      placeholder: |
+        1. …
+        2. …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Erwartetes vs. tatsächliches Verhalten
+    validations:
+      required: true

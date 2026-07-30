@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- CHANGE-MARKER v0.1.0: Initiales Projektgrundgerüst (siehe CHANGELOG.md) -->
+<!-- FileProvider-Pfade für den APK-Download des In-App-Updaters.
+     Das heruntergeladene APK liegt in cache/updates/ und wird per content://-URI
+     an den PackageInstaller/System-Installer übergeben. -->
+<paths>
+    <cache-path name="updates" path="updates/" />
+    <files-path name="shared" path="shared/" />
+</paths>

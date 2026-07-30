@@ -1,0 +1,29 @@
+name: Feature Request
+description: Eine Idee oder Verbesserung vorschlagen
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / Motivation
+      placeholder: "Welcher App-Wechsel / welche Reibung soll wegfallen?"
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Vorschlag
+    validations:
+      required: true
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Passt vermutlich in Phase
+      options:
+        - "M1 (Provider/Chat/BYOK)"
+        - "M2 (Share/PROCESS_TEXT/OCR)"
+        - "M3 (Overlay-Bubble)"
+        - "M4 (Screen-Reading)"
+        - "M5 (Multi-Provider)"
+        - "M6 (Web-Search/Transcription)"
+        - "Unklar"

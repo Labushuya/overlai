@@ -1,0 +1,7 @@
+# CHANGE-MARKER v0.1.0: Initiales Projektgrundgerüst
+# Standard-Reviewer für alle Änderungen. Owner anpassen, sobald das Repo existiert.
+* @Labushuya
+
+# Sicherheitskritische Bereiche brauchen besondere Aufmerksamkeit.
+/core/core-security/   @Labushuya
+/.github/workflows/    @Labushuya

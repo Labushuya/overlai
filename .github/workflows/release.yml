@@ -1,0 +1,165 @@
+# CHANGE-MARKER v0.1.0: Initiales Projektgrundgerüst (siehe CHANGELOG.md)
+# OverlAI — Release-Pipeline. Bei SemVer-Tag (v*) wird eine SIGNIERTE Universal-APK
+# gebaut und als GitHub Release veröffentlicht; zusätzlich wird latest.json erzeugt
+# und nach gh-pages gepusht (die Quelle für den In-App-Updater).
+#
+# LOAD-BEARING: Der Signing-Key MUSS über alle Releases STABIL sein. Ein Update mit
+# abweichender Signatur schlägt mit INSTALL_FAILED_UPDATE_INCOMPATIBLE fehl. Der
+# Keystore lebt daher ausschließlich als base64-GitHub-Secret (ANDROID_KEYSTORE_BASE64)
+# und wird hier zur Build-Zeit rekonstruiert — nie geloggt, nie im Repo.
+#
+# Benötigte Repository-Secrets:
+#   ANDROID_KEYSTORE_BASE64   – base64 der release.jks
+#   ANDROID_KEYSTORE_PASSWORD – storePassword
+#   ANDROID_KEY_ALIAS         – keyAlias
+#   ANDROID_KEY_PASSWORD      – keyPassword
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write   # Release anlegen + gh-pages pushen
+
+jobs:
+  release:
+    name: Build, Sign & Release APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Java 21 (Temurin)
+        uses: actions/setup-java@3a4f6e1af504cf6a31855fa899c6aa5355ba6c12 # v4.7.0
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3.2.2
+
+      - name: Setup Gradle (mit Build-Cache)
+        uses: gradle/actions/setup-gradle@0bdd871935719febd78681f197cd39af5b6e16a6 # v4.2.2
+
+      # Version aus dem Tag ableiten: v1.2.3 -> versionName=1.2.3.
+      # versionCode = numerisch aus SemVer (1.2.3 -> 10203), monoton steigend.
+      - name: Version aus Tag ableiten
+        id: version
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          IFS='.' read -r MAJ MIN PAT <<< "$VERSION"
+          CODE=$(( MAJ * 10000 + MIN * 100 + PAT ))
+          echo "versionName=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "versionCode=$CODE"    >> "$GITHUB_OUTPUT"
+          echo "Release $TAG -> versionName=$VERSION versionCode=$CODE"
+
+      # Tests als Gate: kein Release bei rotem Test.
+      - name: Test-Gate
+        run: ./gradlew testDebugUnitTest test
+
+      # Keystore aus base64-Secret rekonstruieren + keystore.properties schreiben.
+      # Fehlt das Secret, bricht der Release-Build HART ab (anders als bei CI-Debug):
+      # ein unsigniertes/debug-signiertes Release würde den Updater dauerhaft brechen.
+      - name: Release-Signierung einrichten
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${ANDROID_KEYSTORE_BASE64:-}" ]; then
+            echo "::error::ANDROID_KEYSTORE_BASE64 fehlt — Release ohne stabilen Signing-Key abgebrochen (Updater-Signaturzwang)."
+            exit 1
+          fi
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > app/release.jks
+          cat > keystore.properties <<EOF
+          storeFile=app/release.jks
+          storePassword=${ANDROID_KEYSTORE_PASSWORD}
+          keyAlias=${ANDROID_KEY_ALIAS}
+          keyPassword=${ANDROID_KEY_PASSWORD}
+          EOF
+          echo "Keystore rekonstruiert (Inhalt nicht geloggt)."
+
+      # Signierte Universal-APK bauen. KEIN ABI-Split -> genau eine APK, die
+      # latest.json referenzieren kann.
+      - name: Release-APK bauen (signiert)
+        run: |
+          ./gradlew :app:assembleRelease \
+            -PoverlaiVersionName=${{ steps.version.outputs.versionName }} \
+            -PoverlaiVersionCode=${{ steps.version.outputs.versionCode }}
+
+      # APK finden, versioniert umbenennen, sha256 + Größe berechnen.
+      - name: APK aufbereiten (rename + sha256)
+        id: apk
+        run: |
+          set -euo pipefail
+          SRC=$(find app/build/outputs/apk/release -name "*.apk" | head -1)
+          test -n "$SRC"
+          mkdir -p dist
+          OUT="dist/overlai-${GITHUB_REF_NAME}.apk"
+          cp "$SRC" "$OUT"
+          SHA=$(sha256sum "$OUT" | cut -d' ' -f1)
+          SIZE=$(stat -c%s "$OUT")
+          echo "path=$OUT"   >> "$GITHUB_OUTPUT"
+          echo "sha256=$SHA" >> "$GITHUB_OUTPUT"
+          echo "size=$SIZE"  >> "$GITHUB_OUTPUT"
+          echo "APK: $OUT ($SIZE bytes, sha256=$SHA)"
+
+      # GitHub Release mit der APK erstellen.
+      - name: GitHub Release erstellen
+        uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda # v2.2.1
+        with:
+          files: ${{ steps.apk.outputs.path }}
+          generate_release_notes: true
+          body: |
+            ## OverlAI ${{ github.ref_name }}
+
+            Automatisch gebaut, getestet und signiert via GitHub Actions.
+
+            **Installation (Sideload):** APK herunterladen und öffnen.
+            Beim ersten Mal muss „Installation aus unbekannten Quellen" für die
+            installierende App erlaubt werden. Der In-App-Updater hält OverlAI
+            danach aktuell (der System-Install-Dialog erscheint bei jedem Update).
+
+            `sha256`: `${{ steps.apk.outputs.sha256 }}`
+
+      # latest.json für den In-App-Updater erzeugen und nach gh-pages pushen.
+      - name: latest.json erzeugen
+        run: |
+          set -euo pipefail
+          mkdir -p publish
+          cat > publish/latest.json <<EOF
+          {
+            "versionName": "${{ steps.version.outputs.versionName }}",
+            "versionCode": ${{ steps.version.outputs.versionCode }},
+            "minSdk": 26,
+            "apkUrl": "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/overlai-${{ github.ref_name }}.apk",
+            "sha256": "${{ steps.apk.outputs.sha256 }}",
+            "sizeBytes": ${{ steps.apk.outputs.size }},
+            "mandatory": false
+          }
+          EOF
+          cat publish/latest.json
+
+      - name: latest.json nach gh-pages veröffentlichen
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # gh-pages-Branch (orphan) idempotent aktualisieren.
+          git fetch origin gh-pages || true
+          if git show-ref --verify --quiet refs/remotes/origin/gh-pages; then
+            git checkout gh-pages
+          else
+            git checkout --orphan gh-pages
+            git rm -rf . >/dev/null 2>&1 || true
+          fi
+          cp publish/latest.json latest.json
+          git add latest.json
+          git commit -m "chore(release): latest.json -> ${{ github.ref_name }}" || echo "keine Änderung"
+          git push origin gh-pages

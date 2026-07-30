@@ -1,0 +1,32 @@
+# CHANGE-MARKER v0.1.0: Initiales Projektgrundgerüst (siehe CHANGELOG.md)
+# OverlAI — detekt-Konfiguration. buildUponDefaultConfig=true im Root-Build,
+# hier nur Projekt-Overrides. Bewusst pragmatisch, damit das Gate nicht nervt.
+
+build:
+  maxIssues: 0
+
+complexity:
+  LongMethod:
+    threshold: 80
+  LongParameterList:
+    functionThreshold: 8
+    constructorThreshold: 10
+  TooManyFunctions:
+    thresholdInClasses: 20
+    thresholdInFiles: 25
+
+style:
+  MagicNumber:
+    active: false
+  ReturnCount:
+    max: 4
+  MaxLineLength:
+    maxLineLength: 120
+
+naming:
+  FunctionNaming:
+    # Compose @Composable-Funktionen sind PascalCase — erlauben.
+    ignoreAnnotated: ['Composable']
+
+comments:
+  active: true

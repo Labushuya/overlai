@@ -1,0 +1,70 @@
+# CHANGE-MARKER v0.1.0: Initiales Projektgrundgerüst (siehe CHANGELOG.md)
+# OverlAI — CI-Gate. Läuft bei push/PR auf main. Lint (ktlint/detekt), Unit-Tests
+# (inkl. des JVM-Kerns :core-llm), Debug-Build. Public Repo => gratis Actions-Minuten.
+# Third-Party-Actions sind auf Commit-SHA gepinnt (Supply-Chain-Härtung).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Minimalrechte: CI liest nur.
+permissions:
+  contents: read
+
+# Laufende CI bei neuem Push auf denselben Branch abbrechen (spart Minuten).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Lint, Test & Build (Debug)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Java 21 (Temurin)
+        uses: actions/setup-java@3a4f6e1af504cf6a31855fa899c6aa5355ba6c12 # v4.7.0
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3.2.2
+
+      - name: Setup Gradle (mit Build-Cache)
+        uses: gradle/actions/setup-gradle@0bdd871935719febd78681f197cd39af5b6e16a6 # v4.2.2
+
+      # Gate 1: Code-Style (ktlint) + statische Analyse (detekt) über alle Module.
+      - name: Lint-Gate (ktlint + detekt)
+        run: ./gradlew ktlintCheck detekt --continue
+
+      # Gate 2: Unit-Tests. Der JVM-Kern (:core-llm, :core-common) läuft hier ohne
+      # Emulator; das ist der Großteil der Testabdeckung.
+      - name: Unit-Tests
+        run: ./gradlew testDebugUnitTest test
+
+      # Gate 3: Debug-APK muss bauen.
+      - name: Build (assembleDebug)
+        run: ./gradlew :app:assembleDebug
+
+      # Coverage-Report (Kover) als Artefakt.
+      - name: Coverage-Report (Kover)
+        if: always()
+        run: ./gradlew koverXmlReport || true
+
+      - name: Test- & Coverage-Reports hochladen
+        if: always()
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: reports
+          path: |
+            **/build/reports/tests/
+            **/build/reports/kover/
+            **/build/reports/detekt/
+          retention-days: 7
+          if-no-files-found: ignore
