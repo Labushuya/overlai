@@ -30,7 +30,7 @@ tink = "1.15.0"
 # --- Bilder ---
 coil = "2.7.0"
 # --- Qualität ---
-ktlint = "12.1.2"
+ktlint = "14.2.0"
 detekt = "1.23.7"
 kover = "0.9.0"
 # --- Test ---
