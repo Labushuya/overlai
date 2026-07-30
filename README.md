@@ -2,9 +2,9 @@
 
 # OverlAI
 
-[![CI](https://github.com/OWNER/overlai/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/overlai/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/OWNER/overlai/actions/workflows/codeql.yml/badge.svg)](https://github.com/OWNER/overlai/actions/workflows/codeql.yml)
-[![Release](https://img.shields.io/github/v/release/OWNER/overlai?sort=semver)](https://github.com/OWNER/overlai/releases/latest)
+[![CI](https://github.com/Labushuya/overlai/actions/workflows/ci.yml/badge.svg)](https://github.com/Labushuya/overlai/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/Labushuya/overlai/actions/workflows/codeql.yml/badge.svg)](https://github.com/Labushuya/overlai/actions/workflows/codeql.yml)
+[![Release](https://img.shields.io/github/v/release/Labushuya/overlai?sort=semver)](https://github.com/Labushuya/overlai/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![min SDK 26](https://img.shields.io/badge/min%20SDK-26-3DDC84?logo=android&logoColor=white)](#)
 [![target SDK 36](https://img.shields.io/badge/target%20SDK-36-3DDC84?logo=android&logoColor=white)](#)
@@ -55,7 +55,7 @@ nie stillschweigend ignoriert.
 ## Installation
 
 OverlAI wird **ausschließlich als Sideload-APK** über
-[GitHub Releases](https://github.com/OWNER/overlai/releases/latest) verteilt
+[GitHub Releases](https://github.com/Labushuya/overlai/releases/latest) verteilt
 (**kein Play Store**). Grund: die Kernfunktionen (Overlay, Screen-Reading,
 In-App-Updater) sind mit den Play-Store-Richtlinien nicht vereinbar.
 
