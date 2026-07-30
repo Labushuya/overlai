@@ -46,7 +46,7 @@ fun PermissionHubScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                "OverlAI prüft hier alle Voraussetzungen. Roter Status = tippe auf „Fix", " +
+                "OverlAI prüft hier alle Voraussetzungen. Roter Status = tippe auf „Fix“, " +
                     "um direkt zur richtigen Einstellung zu springen.",
                 style = MaterialTheme.typography.bodyMedium,
             )
@@ -57,8 +57,8 @@ fun PermissionHubScreen(
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text("Hinweis zur Bubble", fontWeight = FontWeight.Bold)
                     Text(
-                        "Die schwebende OverlAI-Bubble (ab Phase 2) nutzt „Über anderen Apps anzeigen" " +
-                            "— NICHT die System-„Bubbles". Sie kann also nicht durch einen deaktivierten " +
+                        "Die schwebende OverlAI-Bubble (ab Phase 2) nutzt „Über anderen Apps anzeigen“ " +
+                            "— NICHT die System-„Bubbles“. Sie kann also nicht durch einen deaktivierten " +
                             "Bubble-Schalter unsichtbar werden.",
                         style = MaterialTheme.typography.bodySmall,
                     )
