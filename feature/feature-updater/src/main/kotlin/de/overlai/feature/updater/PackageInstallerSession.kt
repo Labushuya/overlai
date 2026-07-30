@@ -34,24 +34,28 @@ class PackageInstallerSession(
             }
         val sessionId = installer.createSession(params)
         installer.openSession(sessionId).use { session ->
-            apk.inputStream().use { input ->
-                session.openWrite("overlai_update", 0, apk.length()).use { output ->
-                    val buffer = ByteArray(BUFFER)
-                    var read = input.read(buffer)
-                    while (read >= 0) {
-                        output.write(buffer, 0, read)
-                        read = input.read(buffer)
-                    }
-                    session.fsync(output)
-                }
-            }
-            val statusIntent = Intent(ACTION_INSTALL_STATUS).setPackage(context.packageName)
-            val flags =
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-            val pending = PendingIntent.getBroadcast(context, sessionId, statusIntent, flags)
+            writeApk(session, apk)
             // commit() -> das System zeigt jetzt den Install-Bestätigungsdialog.
-            session.commit(pending.intentSender)
+            session.commit(buildStatusIntentSender(sessionId))
         }
         return true
+    }
+
+    private fun writeApk(
+        session: PackageInstaller.Session,
+        apk: File,
+    ) {
+        apk.inputStream().use { input ->
+            session.openWrite("overlai_update", 0, apk.length()).use { output ->
+                input.copyTo(output, BUFFER)
+                session.fsync(output)
+            }
+        }
+    }
+
+    private fun buildStatusIntentSender(sessionId: Int): android.content.IntentSender {
+        val statusIntent = Intent(ACTION_INSTALL_STATUS).setPackage(context.packageName)
+        val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+        return PendingIntent.getBroadcast(context, sessionId, statusIntent, flags).intentSender
     }
 }

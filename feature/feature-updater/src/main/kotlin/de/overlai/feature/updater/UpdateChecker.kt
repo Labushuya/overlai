@@ -44,8 +44,10 @@ class UpdateChecker(
             }
         } catch (e: IOException) {
             Result.Error("Netzwerkfehler: ${e.message}")
-        } catch (e: Exception) {
+        } catch (e: kotlinx.serialization.SerializationException) {
             Result.Error("Manifest-Fehler: ${e.message}")
+        } catch (e: IllegalArgumentException) {
+            Result.Error("Manifest ungültig: ${e.message}")
         }
     }
 }
