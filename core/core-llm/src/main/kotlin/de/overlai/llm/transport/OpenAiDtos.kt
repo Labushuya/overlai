@@ -1,0 +1,59 @@
+package de.overlai.llm.transport
+
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
+
+// CHANGE-MARKER v0.1.0: Provider-Abstraktion (siehe CHANGELOG.md)
+// OpenAI-kompatibles Wire-Format (/v1/chat/completions). Deckt OpenAI, DeepSeek,
+// Grok, Kimi, OpenRouter und Gemini (via OpenAI-Shim) ab. Anthropic hat ein
+// eigenes Format -> eigener Adapter (M5).
+
+@Serializable
+internal data class OpenAiChatRequest(
+    val model: String,
+    val messages: List<OpenAiMessage>,
+    val stream: Boolean = true,
+    val temperature: Double? = null,
+    @SerialName("max_tokens") val maxTokens: Int? = null,
+)
+
+@Serializable
+internal data class OpenAiMessage(
+    val role: String,
+    // content ist bei reinem Text ein String, bei Vision ein Array von Parts.
+    // Wir serialisieren als JsonElement, um beide Formen abzudecken.
+    val content: JsonElement,
+)
+
+// --- Streaming-Response-Chunks ---
+
+@Serializable
+internal data class OpenAiStreamChunk(
+    val choices: List<OpenAiStreamChoice> = emptyList(),
+)
+
+@Serializable
+internal data class OpenAiStreamChoice(
+    val delta: OpenAiDelta = OpenAiDelta(),
+    @SerialName("finish_reason") val finishReason: String? = null,
+)
+
+@Serializable
+internal data class OpenAiDelta(
+    val content: String? = null,
+)
+
+// --- Fehler-Body ---
+
+@Serializable
+internal data class OpenAiErrorEnvelope(
+    val error: OpenAiError? = null,
+)
+
+@Serializable
+internal data class OpenAiError(
+    val message: String? = null,
+    val type: String? = null,
+    val code: String? = null,
+)
