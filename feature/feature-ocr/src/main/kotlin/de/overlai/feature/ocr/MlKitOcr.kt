@@ -4,9 +4,9 @@ import android.graphics.Bitmap
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import kotlinx.coroutines.suspendCancellableCoroutine
 
 // CHANGE-MARKER v0.1.0: OCR (siehe CHANGELOG.md)
 // ML Kit Text Recognition v2 (gebündeltes Latin-Modell, offline, kein GMS-Zwang).

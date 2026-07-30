@@ -53,7 +53,7 @@ class ShareReceiverActivity : ComponentActivity() {
 
                 QuickActionSurface(
                     viewModel = vm,
-                    onCopy = { copyToClipboard(it); toastAndFinish("Kopiert") },
+                    onCopy = { copyAndFinish(it) },
                     onInsert = null,
                     onDismiss = { finish() },
                 )
@@ -93,6 +93,11 @@ class ShareReceiverActivity : ComponentActivity() {
     private fun copyToClipboard(text: String) {
         val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         cm.setPrimaryClip(ClipData.newPlainText("OverlAI", text))
+    }
+
+    private fun copyAndFinish(text: String) {
+        copyToClipboard(text)
+        toastAndFinish("Kopiert")
     }
 
     private fun toastAndFinish(msg: String) {
