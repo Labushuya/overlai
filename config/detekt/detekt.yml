@@ -27,6 +27,9 @@ naming:
   FunctionNaming:
     # Compose @Composable-Funktionen sind PascalCase — erlauben.
     ignoreAnnotated: ['Composable']
+  # Datei-Name-muss-Top-Level-Deklaration-matchen: zu streng für NavHost + Routes.
+  MatchingDeclarationName:
+    active: false
 
 comments:
   active: true

@@ -1,0 +1,25 @@
+# CHANGE-MARKER v0.1.0: Initiales Projektgrundgerüst (siehe CHANGELOG.md)
+# OverlAI — ktlint/IDE-Formatierung.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+max_line_length = 120
+
+[*.{kt,kts}]
+# ktlint 1.x
+ktlint_standard_max-line-length = disabled
+# @Composable-Funktionen sind konventionsgemäß PascalCase — die Standard-Regel
+# "function-naming" würde das fälschlich anmeckern (nicht auto-korrigierbar).
+ktlint_function_naming_ignore_when_annotated_with = Composable
+# "single top-level declaration must match file name" ist für NavHost-Dateien
+# mit begleitendem Routes-Objekt zu streng.
+ktlint_standard_filename = disabled
+
+[*.{yml,yaml,json}]
+indent_size = 2

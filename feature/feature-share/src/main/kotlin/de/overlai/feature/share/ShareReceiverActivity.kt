@@ -15,11 +15,12 @@ class ShareReceiverActivity : Activity() {
         val sharedText = intent?.getStringExtra(Intent.EXTRA_TEXT)
 
         // TODO(M2): Bild via EXTRA_STREAM -> OCR; Text direkt -> Chat-Flow.
-        val msg = when {
-            type.startsWith("image/") -> "OverlAI: Bild empfangen"
-            !sharedText.isNullOrBlank() -> "OverlAI: ${sharedText.take(40)}…"
-            else -> "OverlAI: Inhalt empfangen"
-        }
+        val msg =
+            when {
+                type.startsWith("image/") -> "OverlAI: Bild empfangen"
+                !sharedText.isNullOrBlank() -> "OverlAI: ${sharedText.take(40)}…"
+                else -> "OverlAI: Inhalt empfangen"
+            }
         Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
         finish()
     }

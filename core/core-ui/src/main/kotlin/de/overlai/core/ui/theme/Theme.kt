@@ -20,17 +20,19 @@ private val BrandPrimary = Color(0xFF4C5BD4)
 private val BrandSecondary = Color(0xFF00A6A6)
 private val BrandTertiary = Color(0xFF7C4DFF)
 
-private val LightColors = lightColorScheme(
-    primary = BrandPrimary,
-    secondary = BrandSecondary,
-    tertiary = BrandTertiary,
-)
+private val LightColors =
+    lightColorScheme(
+        primary = BrandPrimary,
+        secondary = BrandSecondary,
+        tertiary = BrandTertiary,
+    )
 
-private val DarkColors = darkColorScheme(
-    primary = BrandPrimary,
-    secondary = BrandSecondary,
-    tertiary = BrandTertiary,
-)
+private val DarkColors =
+    darkColorScheme(
+        primary = BrandPrimary,
+        secondary = BrandSecondary,
+        tertiary = BrandTertiary,
+    )
 
 @Composable
 fun OverlAiTheme(
@@ -39,14 +41,15 @@ fun OverlAiTheme(
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit,
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+    val colorScheme =
+        when {
+            dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+                val context = LocalContext.current
+                if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            }
+            darkTheme -> DarkColors
+            else -> LightColors
         }
-        darkTheme -> DarkColors
-        else -> LightColors
-    }
 
     MaterialTheme(
         colorScheme = colorScheme,

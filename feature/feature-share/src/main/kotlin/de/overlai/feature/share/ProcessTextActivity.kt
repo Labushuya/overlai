@@ -12,10 +12,11 @@ import android.widget.Toast
 class ProcessTextActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val selected = intent
-            ?.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)
-            ?.toString()
-            .orEmpty()
+        val selected =
+            intent
+                ?.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)
+                ?.toString()
+                .orEmpty()
 
         // TODO(M2): selektierten Text an core-llm übergeben, Antwort anzeigen,
         //           bei readonly-Host Copy-Fallback + Toast.

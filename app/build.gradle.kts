@@ -30,9 +30,10 @@ android {
     // aktualisiert werden (andere Signatur). Die CI legt die Datei immer an.
     val keystorePropertiesFile = rootProject.file("keystore.properties")
     val hasKeystore = keystorePropertiesFile.exists()
-    val keystoreProperties = Properties().apply {
-        if (hasKeystore) keystorePropertiesFile.inputStream().use { load(it) }
-    }
+    val keystoreProperties =
+        Properties().apply {
+            if (hasKeystore) keystorePropertiesFile.inputStream().use { load(it) }
+        }
 
     signingConfigs {
         if (hasKeystore) {
@@ -53,12 +54,13 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            signingConfig = if (hasKeystore) {
-                signingConfigs.getByName("release")
-            } else {
-                // Fallback: debug-Signatur (nur für lokale Builds ohne Keystore).
-                signingConfigs.getByName("debug")
-            }
+            signingConfig =
+                if (hasKeystore) {
+                    signingConfigs.getByName("release")
+                } else {
+                    // Fallback: debug-Signatur (nur für lokale Builds ohne Keystore).
+                    signingConfigs.getByName("debug")
+                }
         }
         debug {
             applicationIdSuffix = ".debug"
