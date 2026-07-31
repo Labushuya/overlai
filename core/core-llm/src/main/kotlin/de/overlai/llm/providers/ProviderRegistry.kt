@@ -98,12 +98,13 @@ object ProviderRegistry {
         )
 
     // Google Gemini über den OpenAI-kompatiblen Shim-Endpoint (/v1beta/openai/).
-    // Kostenloser Tier mit großzügigem Kontingent (Flash-Modelle) — daher für den
-    // "kostenlos testen"-Fokus interessant. Vor Ship verifizieren (Feasibility §4).
+    // Hinweis: Google bewirbt einen kostenlosen Tier, aber ob er greift, hängt vom
+    // Google-Konto/Projekt ab (Billing/Kontingent/Region) — daher KEIN Kostenversprechen
+    // im UI. Modellnamen vor Ship gegen die Live-Doku verifizieren.
     val GEMINI =
         ProviderConfig(
             id = "gemini",
-            displayName = "Google Gemini (free tier)",
+            displayName = "Google Gemini",
             baseUrl = "https://generativelanguage.googleapis.com/v1beta/openai",
             authScheme = AuthScheme.Bearer,
             capabilities =
@@ -111,11 +112,7 @@ object ProviderRegistry {
             defaultModel = "gemini-2.0-flash",
         )
 
-    // IDs von Providern mit kostenlosem/gratis-Tier — im Onboarding markiert.
-    val FREE_TIER_IDS: Set<String> = setOf("gemini", "openrouter")
-
-    // Reihenfolge = Anzeige-Reihenfolge im Provider-Picker. OpenAI zuerst (MVP),
-    // dann die kostenlosen Optionen (Gemini/OpenRouter) prominent.
+    // Reihenfolge = Anzeige-Reihenfolge im Provider-Picker. OpenAI zuerst (MVP).
     val all: List<ProviderConfig> = listOf(OPENAI, GEMINI, OPENROUTER, ANTHROPIC, GROK, DEEPSEEK, KIMI)
 
     fun byId(id: String): ProviderConfig? = all.firstOrNull { it.id == id }

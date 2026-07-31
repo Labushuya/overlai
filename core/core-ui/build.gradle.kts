@@ -8,6 +8,7 @@ plugins {
 dependencies {
     implementation(project(":core:core-common"))
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.coil.compose)
 }

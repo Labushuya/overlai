@@ -5,6 +5,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -14,6 +15,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import de.overlai.core.ui.util.OnResume
 import de.overlai.feature.chat.ChatScreen
 import de.overlai.feature.chat.ChatViewModel
 import de.overlai.feature.onboarding.OnboardingScreen
@@ -31,6 +33,7 @@ import de.overlai.feature.updater.UpdateViewModel
 import de.overlai.feature.updater.UpdatesScreen
 import de.overlai.llm.providers.ProviderRegistry
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 // CHANGE-MARKER v0.2.1: Navigation (siehe CHANGELOG.md)
 // Zentraler Navigations-Graph. Alle Screens werden hier verdrahtet; die
@@ -150,12 +153,16 @@ private fun SettingsHomeRoute(
     deps: AppDependencies,
     navController: NavHostController,
 ) {
+    val scope = rememberCoroutineScope()
     var providerName by remember { mutableStateOf("") }
     var hasKey by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        val id = deps.settingsStore.activeProviderId.first()
-        providerName = ProviderRegistry.byId(id)?.displayName ?: id
-        hasKey = deps.keyVault.hasKey(id)
+    // Bei jeder Rückkehr neu laden (z.B. nach Key-Eingabe im Provider-Screen).
+    OnResume {
+        scope.launch {
+            val id = deps.settingsStore.activeProviderId.first()
+            providerName = ProviderRegistry.byId(id)?.displayName ?: id
+            hasKey = deps.keyVault.hasKey(id)
+        }
     }
     SettingsListScreen(
         activeProviderName = providerName,
@@ -171,34 +178,39 @@ private fun PermissionsRoute(
     navController: NavHostController,
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var state by remember { mutableStateOf(PermissionHubState()) }
-    LaunchedEffect(Unit) {
-        val activeId = deps.settingsStore.activeProviderId.first()
-        state =
-            PermissionHubState(
-                items =
-                    listOf(
-                        PermissionItem(
-                            id = "api_key",
-                            title = "API-Key hinterlegt",
-                            rationale = "OverlAI braucht deinen Provider-Key (BYOK), um Anfragen zu senden.",
-                            granted = deps.keyVault.hasKey(activeId),
-                            fixIsSystemSetting = false,
+    // ON_RESUME statt LaunchedEffect(Unit): nach Rückkehr aus den System-Einstellungen
+    // (Berechtigung erteilt) wird der grün/rot-Status sofort neu gelesen.
+    OnResume {
+        scope.launch {
+            val activeId = deps.settingsStore.activeProviderId.first()
+            state =
+                PermissionHubState(
+                    items =
+                        listOf(
+                            PermissionItem(
+                                id = "api_key",
+                                title = "API-Key hinterlegt",
+                                rationale = "OverlAI braucht deinen Provider-Key (BYOK), um Anfragen zu senden.",
+                                granted = deps.keyVault.hasKey(activeId),
+                                fixIsSystemSetting = false,
+                            ),
+                            PermissionItem(
+                                id = "install_packages",
+                                title = "Unbekannte Apps installieren",
+                                rationale = "Nötig, damit der In-App-Updater neue Versionen installieren kann.",
+                                granted = PermissionChecks.canInstallPackages(context),
+                            ),
+                            PermissionItem(
+                                id = "notifications",
+                                title = "Benachrichtigungen",
+                                rationale = "Für Update- und Download-Hinweise.",
+                                granted = PermissionChecks.notificationsEnabled(context),
+                            ),
                         ),
-                        PermissionItem(
-                            id = "install_packages",
-                            title = "Unbekannte Apps installieren",
-                            rationale = "Nötig, damit der In-App-Updater neue Versionen installieren kann.",
-                            granted = PermissionChecks.canInstallPackages(context),
-                        ),
-                        PermissionItem(
-                            id = "notifications",
-                            title = "Benachrichtigungen",
-                            rationale = "Für Update- und Download-Hinweise.",
-                            granted = PermissionChecks.notificationsEnabled(context),
-                        ),
-                    ),
-            )
+                )
+        }
     }
     PermissionHubScreen(
         state = state,
