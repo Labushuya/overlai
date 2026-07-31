@@ -6,18 +6,27 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import de.overlai.conversation.ConversationEngine
 import de.overlai.core.data.SettingsStore
+import de.overlai.feature.updater.ApkDownloader
+import de.overlai.feature.updater.PackageInstallerSession
+import de.overlai.feature.updater.UpdateChecker
 import de.overlai.llm.ProviderFactory
 import de.overlai.security.KeyVault
 import de.overlai.security.TinkKeyVault
+import kotlinx.serialization.json.Json
+import okhttp3.OkHttpClient
 import javax.inject.Singleton
 
-// CHANGE-MARKER v0.1.0: DI-Verdrahtung (siehe CHANGELOG.md)
+// CHANGE-MARKER v0.2.1: DI-Verdrahtung (siehe CHANGELOG.md)
 // Stellt die core-Bausteine app-weit bereit. core-* bleiben DI-annotationsfrei;
 // die Bindung passiert hier zentral.
 @Module
 @InstallIn(SingletonComponent::class)
 object AppModule {
+    // latest.json des Updaters auf gh-pages (siehe release.yml).
+    private const val LATEST_JSON_URL = "https://labushuya.github.io/overlai/latest.json"
+
     @Provides
     @Singleton
     fun provideKeyVault(
@@ -33,4 +42,40 @@ object AppModule {
     fun provideSettingsStore(
         @ApplicationContext context: Context,
     ): SettingsStore = SettingsStore(context)
+
+    @Provides
+    @Singleton
+    fun provideConversationEngine(
+        providerFactory: ProviderFactory,
+        keyVault: KeyVault,
+        settingsStore: SettingsStore,
+    ): ConversationEngine = ConversationEngine(providerFactory, keyVault, settingsStore)
+
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(): OkHttpClient = OkHttpClient.Builder().build()
+
+    @Provides
+    @Singleton
+    fun provideUpdateChecker(
+        client: OkHttpClient,
+    ): UpdateChecker =
+        UpdateChecker(
+            client = client,
+            json = Json { ignoreUnknownKeys = true },
+            latestJsonUrl = LATEST_JSON_URL,
+        )
+
+    @Provides
+    @Singleton
+    fun provideApkDownloader(
+        @ApplicationContext context: Context,
+        client: OkHttpClient,
+    ): ApkDownloader = ApkDownloader(context, client)
+
+    @Provides
+    @Singleton
+    fun providePackageInstallerSession(
+        @ApplicationContext context: Context,
+    ): PackageInstallerSession = PackageInstallerSession(context)
 }

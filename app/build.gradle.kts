@@ -75,6 +75,7 @@ dependencies {
     implementation(project(":core:core-llm"))
     implementation(project(":core:core-security"))
     implementation(project(":core:core-data"))
+    implementation(project(":core:core-conversation"))
 
     implementation(project(":feature:feature-onboarding"))
     implementation(project(":feature:feature-chat"))
@@ -82,10 +83,14 @@ dependencies {
     implementation(project(":feature:feature-share"))
     implementation(project(":feature:feature-ocr"))
     implementation(project(":feature:feature-updater"))
+    implementation(project(":feature:feature-settings"))
 
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.hilt.navigation.compose)
+    implementation(libs.androidx.compose.material.icons.extended)
 }

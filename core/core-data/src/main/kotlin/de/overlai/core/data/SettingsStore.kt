@@ -1,36 +1,77 @@
 package de.overlai.core.data
 
 import android.content.Context
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import de.overlai.common.ThemeMode
+import de.overlai.common.ThemePreferences
 import de.overlai.llm.providers.ProviderRegistry
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 
-// CHANGE-MARKER v0.1.0: App-weite Einstellungen (siehe CHANGELOG.md)
-// Persistiert die App-weite Auswahl (aktiver Provider) in DataStore. Chat und
-// Quick-Actions lesen hier den aktiven Provider statt fix OpenAI zu nehmen.
+// CHANGE-MARKER v0.2.1: App-weite Einstellungen (siehe CHANGELOG.md)
+// Persistiert App-weite Einstellungen in DataStore: aktiver Provider, Theme-
+// Präferenzen und ein First-Run-Flag (ob das Setup schon einmal gezeigt wurde).
 private val Context.settingsStore by preferencesDataStore(name = "overlai_settings")
 
 class SettingsStore(
     private val context: Context,
 ) {
     private val activeProviderKey = stringPreferencesKey("active_provider_id")
+    private val themeModeKey = stringPreferencesKey("theme_mode")
+    private val dynamicColorKey = booleanPreferencesKey("use_dynamic_color")
+    private val onboardingShownKey = booleanPreferencesKey("onboarding_shown")
 
     // Aktiver Provider (Default: OpenAI). Fällt auf OpenAI zurück, falls die
     // gespeicherte ID nicht mehr in der Registry existiert.
     val activeProviderId: Flow<String> =
-        context.settingsStore.data.map { prefs ->
-            val stored = prefs[activeProviderKey]
-            if (stored != null && ProviderRegistry.byId(stored) != null) {
-                stored
-            } else {
-                ProviderRegistry.OPENAI.id
-            }
-        }
+        context.settingsStore.data
+            .map { prefs ->
+                val stored = prefs[activeProviderKey]
+                if (stored != null && ProviderRegistry.byId(stored) != null) {
+                    stored
+                } else {
+                    ProviderRegistry.OPENAI.id
+                }
+            }.distinctUntilChanged()
 
     suspend fun setActiveProvider(providerId: String) {
         context.settingsStore.edit { it[activeProviderKey] = providerId }
+    }
+
+    // Theme-Präferenzen. distinctUntilChanged ist load-bearing: data{} emittiert
+    // bei JEDEM Write (auch active_provider_id), sonst rekomponiert das Theme grundlos.
+    val themePreferences: Flow<ThemePreferences> =
+        context.settingsStore.data
+            .map { prefs ->
+                ThemePreferences(
+                    mode =
+                        prefs[themeModeKey]
+                            ?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() }
+                            ?: ThemeMode.SYSTEM,
+                    useDynamicColor = prefs[dynamicColorKey] ?: true,
+                )
+            }.distinctUntilChanged()
+
+    suspend fun setThemeMode(mode: ThemeMode) {
+        context.settingsStore.edit { it[themeModeKey] = mode.name }
+    }
+
+    suspend fun setUseDynamicColor(enabled: Boolean) {
+        context.settingsStore.edit { it[dynamicColorKey] = enabled }
+    }
+
+    // First-Run: wurde das Setup schon einmal geöffnet? (Guard gegen wiederholtes
+    // Auto-Routing ins Onboarding.)
+    val onboardingShown: Flow<Boolean> =
+        context.settingsStore.data
+            .map { it[onboardingShownKey] ?: false }
+            .distinctUntilChanged()
+
+    suspend fun markOnboardingShown() {
+        context.settingsStore.edit { it[onboardingShownKey] = true }
     }
 }

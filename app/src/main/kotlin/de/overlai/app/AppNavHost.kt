@@ -14,7 +14,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import de.overlai.core.data.SettingsStore
 import de.overlai.feature.chat.ChatScreen
 import de.overlai.feature.chat.ChatViewModel
 import de.overlai.feature.onboarding.OnboardingScreen
@@ -23,25 +22,26 @@ import de.overlai.feature.permissions.PermissionChecks
 import de.overlai.feature.permissions.PermissionHubScreen
 import de.overlai.feature.permissions.PermissionHubState
 import de.overlai.feature.permissions.PermissionItem
-import de.overlai.llm.ProviderFactory
-import de.overlai.security.KeyVault
+import de.overlai.feature.settings.AboutScreen
+import de.overlai.feature.settings.AppearanceScreen
+import de.overlai.feature.settings.AppearanceViewModel
+import de.overlai.feature.settings.SettingsListScreen
+import de.overlai.feature.settings.SettingsRoutes
+import de.overlai.feature.updater.UpdateViewModel
+import de.overlai.feature.updater.UpdatesScreen
+import de.overlai.llm.providers.ProviderRegistry
 import kotlinx.coroutines.flow.first
 
-// CHANGE-MARKER v0.1.0: Navigation (siehe CHANGELOG.md)
-// Zentraler Navigations-Graph. Die ViewModels haben bewusst einfache
-// Konstruktoren (core-* ohne DI-Annotationen); hier werden sie über eine
-// kleine ViewModelProvider.Factory mit den DI-bereitgestellten Bausteinen erzeugt.
+// CHANGE-MARKER v0.2.1: Navigation (siehe CHANGELOG.md)
+// Zentraler Navigations-Graph. Alle Screens werden hier verdrahtet; die
+// feature-Module kennen einander nicht (Komposition nur hier in :app).
 object Routes {
-    const val ONBOARDING = "onboarding"
     const val CHAT = "chat"
-    const val PERMISSIONS = "permissions"
 }
 
 @Composable
 fun AppNavHost(
-    keyVault: KeyVault,
-    providerFactory: ProviderFactory,
-    settingsStore: SettingsStore,
+    deps: AppDependencies,
     navController: NavHostController,
     modifier: Modifier = Modifier,
 ) {
@@ -56,24 +56,49 @@ fun AppNavHost(
                     factory =
                         simpleFactory {
                             ChatViewModel(
-                                providerFactory = providerFactory,
-                                keyVault = keyVault,
-                                settingsStore = settingsStore,
+                                providerFactory = deps.providerFactory,
+                                keyVault = deps.keyVault,
+                                settingsStore = deps.settingsStore,
                             )
                         },
                 )
-            // Nach Rückkehr aus dem Onboarding den aktiven Provider neu laden.
-            LaunchedEffect(Unit) { vm.refreshActiveProvider() }
+            // First-run: einmalig ins Provider-Setup routen, wenn noch kein Key +
+            // Onboarding noch nie gezeigt. Flag persistiert, damit es einmalig bleibt.
+            LaunchedEffect(Unit) {
+                vm.refreshActiveProvider()
+                val shown = deps.settingsStore.onboardingShown.first()
+                val activeId = deps.settingsStore.activeProviderId.first()
+                if (!shown && !deps.keyVault.hasKey(activeId)) {
+                    deps.settingsStore.markOnboardingShown()
+                    navController.navigate(SettingsRoutes.PROVIDER)
+                }
+            }
             ChatScreen(
                 viewModel = vm,
-                onOpenOnboarding = { navController.navigate(Routes.ONBOARDING) },
+                onOpenOnboarding = { navController.navigate(SettingsRoutes.PROVIDER) },
             )
         }
 
-        composable(Routes.ONBOARDING) {
+        composable(SettingsRoutes.HOME) {
+            val context = LocalContext.current
+            var providerName by remember { mutableStateOf("") }
+            var hasKey by remember { mutableStateOf(false) }
+            LaunchedEffect(Unit) {
+                val id = deps.settingsStore.activeProviderId.first()
+                providerName = ProviderRegistry.byId(id)?.displayName ?: id
+                hasKey = deps.keyVault.hasKey(id)
+            }
+            SettingsListScreen(
+                activeProviderName = providerName,
+                hasActiveKey = hasKey,
+                onOpen = { navController.navigate(it) },
+            )
+        }
+
+        composable(SettingsRoutes.PROVIDER) {
             val vm =
                 viewModel<OnboardingViewModel>(
-                    factory = simpleFactory { OnboardingViewModel(keyVault, settingsStore) },
+                    factory = simpleFactory { OnboardingViewModel(deps.keyVault, deps.settingsStore) },
                 )
             OnboardingScreen(
                 viewModel = vm,
@@ -81,51 +106,93 @@ fun AppNavHost(
             )
         }
 
-        composable(Routes.PERMISSIONS) {
+        composable(SettingsRoutes.PERMISSIONS) {
+            PermissionsRoute(deps, navController)
+        }
+
+        composable(SettingsRoutes.UPDATES) {
             val context = LocalContext.current
-            var state by remember { mutableStateOf(PermissionHubState()) }
-            // Bei jedem Betreten neu prüfen (Nutzer kommt oft aus den Settings zurück).
-            LaunchedEffect(Unit) {
-                val activeId = settingsStore.activeProviderId.first()
-                state =
-                    PermissionHubState(
-                        items =
-                            listOf(
-                                PermissionItem(
-                                    id = "api_key",
-                                    title = "API-Key hinterlegt",
-                                    rationale = "OverlAI braucht deinen Provider-Key (BYOK), um Anfragen zu senden.",
-                                    granted = keyVault.hasKey(activeId),
-                                    fixIsSystemSetting = false,
-                                ),
-                                PermissionItem(
-                                    id = "install_packages",
-                                    title = "Unbekannte Apps installieren",
-                                    rationale = "Nötig, damit der In-App-Updater neue Versionen installieren kann.",
-                                    granted = PermissionChecks.canInstallPackages(context),
-                                ),
-                                PermissionItem(
-                                    id = "notifications",
-                                    title = "Benachrichtigungen",
-                                    rationale = "Für Update- und Download-Hinweise.",
-                                    granted = PermissionChecks.notificationsEnabled(context),
-                                ),
-                            ),
-                    )
-            }
-            PermissionHubScreen(
-                state = state,
-                onFix = { item ->
-                    when (item.id) {
-                        "api_key" -> navController.navigate(Routes.ONBOARDING)
-                        "install_packages" ->
-                            context.startActivity(PermissionChecks.installUnknownAppsIntent(context))
-                        else -> context.startActivity(PermissionChecks.appDetailsIntent(context))
-                    }
+            val vm =
+                viewModel<UpdateViewModel>(
+                    factory =
+                        simpleFactory {
+                            UpdateViewModel(
+                                currentVersion = deps.versionName,
+                                checker = deps.updateChecker,
+                                downloader = deps.apkDownloader,
+                                installer = deps.packageInstaller,
+                            )
+                        },
+                )
+            UpdatesScreen(
+                viewModel = vm,
+                onBack = { navController.popBackStack() },
+                onFixInstallPermission = {
+                    context.startActivity(PermissionChecks.installUnknownAppsIntent(context))
                 },
             )
         }
+
+        composable(SettingsRoutes.APPEARANCE) {
+            val vm =
+                viewModel<AppearanceViewModel>(
+                    factory = simpleFactory { AppearanceViewModel(deps.settingsStore) },
+                )
+            AppearanceScreen(viewModel = vm, onBack = { navController.popBackStack() })
+        }
+
+        composable(SettingsRoutes.ABOUT) {
+            AboutScreen(versionName = deps.versionName, onBack = { navController.popBackStack() })
+        }
     }
+}
+
+// Permission-Hub als eigene Route-Composable (hält den Live-Status).
+@Composable
+private fun PermissionsRoute(
+    deps: AppDependencies,
+    navController: NavHostController,
+) {
+    val context = LocalContext.current
+    var state by remember { mutableStateOf(PermissionHubState()) }
+    LaunchedEffect(Unit) {
+        val activeId = deps.settingsStore.activeProviderId.first()
+        state =
+            PermissionHubState(
+                items =
+                    listOf(
+                        PermissionItem(
+                            id = "api_key",
+                            title = "API-Key hinterlegt",
+                            rationale = "OverlAI braucht deinen Provider-Key (BYOK), um Anfragen zu senden.",
+                            granted = deps.keyVault.hasKey(activeId),
+                            fixIsSystemSetting = false,
+                        ),
+                        PermissionItem(
+                            id = "install_packages",
+                            title = "Unbekannte Apps installieren",
+                            rationale = "Nötig, damit der In-App-Updater neue Versionen installieren kann.",
+                            granted = PermissionChecks.canInstallPackages(context),
+                        ),
+                        PermissionItem(
+                            id = "notifications",
+                            title = "Benachrichtigungen",
+                            rationale = "Für Update- und Download-Hinweise.",
+                            granted = PermissionChecks.notificationsEnabled(context),
+                        ),
+                    ),
+            )
+    }
+    PermissionHubScreen(
+        state = state,
+        onFix = { item ->
+            when (item.id) {
+                "api_key" -> navController.navigate(SettingsRoutes.PROVIDER)
+                "install_packages" -> context.startActivity(PermissionChecks.installUnknownAppsIntent(context))
+                else -> context.startActivity(PermissionChecks.appDetailsIntent(context))
+            }
+        },
+    )
 }
 
 // Minimaler ViewModelProvider.Factory-Helfer für parametrisierte ViewModels.
