@@ -77,12 +77,15 @@ jobs:
             exit 1
           fi
           echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > app/release.jks
-          cat > keystore.properties <<EOF
-          storeFile=app/release.jks
-          storePassword=${ANDROID_KEYSTORE_PASSWORD}
-          keyAlias=${ANDROID_KEY_ALIAS}
-          keyPassword=${ANDROID_KEY_PASSWORD}
-          EOF
+          # keystore.properties zeilenweise schreiben. printf '%s' verhindert jede
+          # Re-Interpretation von Sonderzeichen ($, \, …) im Passwort. Heredoc mit
+          # unquotiertem Delimiter wäre hier fragil (doppelte Expansion).
+          {
+            printf 'storeFile=%s\n' 'app/release.jks'
+            printf 'storePassword=%s\n' "$ANDROID_KEYSTORE_PASSWORD"
+            printf 'keyAlias=%s\n' "$ANDROID_KEY_ALIAS"
+            printf 'keyPassword=%s\n' "$ANDROID_KEY_PASSWORD"
+          } > keystore.properties
           echo "Keystore rekonstruiert (Inhalt nicht geloggt)."
 
       # Signierte Universal-APK bauen. KEIN ABI-Split -> genau eine APK, die
