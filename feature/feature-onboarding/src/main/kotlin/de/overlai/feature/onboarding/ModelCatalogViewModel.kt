@@ -123,11 +123,12 @@ class ModelCatalogViewModel(
         when (e) {
             is LlmError.Unauthorized -> Phase.Error.Unauthorized
             is LlmError.RateLimited, is LlmError.InsufficientQuota -> Phase.Error.RateLimited
-            is LlmError.Api -> if (e.status == HTTP_NOT_FOUND || e.status == HTTP_METHOD_NA) {
-                Phase.Error.NoEndpoint
-            } else {
-                Phase.Error.Network(e.message ?: "Fehler")
-            }
+            is LlmError.Api ->
+                if (e.status == HTTP_NOT_FOUND || e.status == HTTP_METHOD_NA) {
+                    Phase.Error.NoEndpoint
+                } else {
+                    Phase.Error.Network(e.message ?: "Fehler")
+                }
             else -> Phase.Error.Network(e.message ?: "Netzwerkfehler")
         }
 

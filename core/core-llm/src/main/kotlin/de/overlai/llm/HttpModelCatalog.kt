@@ -9,7 +9,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.Response
 
 // CHANGE-MARKER v0.4.0: Modell-Katalog (siehe CHANGELOG.md)
 // Lädt den Modell-Katalog live mit dem BYOK-Key. Nur bestätigte Endpoints werden
