@@ -24,8 +24,11 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object AppModule {
-    // latest.json des Updaters auf gh-pages (siehe release.yml).
-    private const val LATEST_JSON_URL = "https://labushuya.github.io/overlai/latest.json"
+    // latest.json des Updaters. GitHub Pages ist für das Repo NICHT aktiviert, daher
+    // direkt den gh-pages-Branch über raw.githubusercontent lesen (liefert 200; die
+    // .github.io-URL gäbe 404). Wird von release.yml auf gh-pages publiziert.
+    private const val LATEST_JSON_URL =
+        "https://raw.githubusercontent.com/Labushuya/overlai/gh-pages/latest.json"
 
     @Provides
     @Singleton
