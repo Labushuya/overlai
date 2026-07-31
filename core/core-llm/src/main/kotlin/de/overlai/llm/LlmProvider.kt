@@ -34,6 +34,12 @@ sealed class LlmError(
 
     class RateLimited(message: String = "Rate-Limit erreicht") : LlmError(message)
 
+    // Guthaben/Kontingent erschöpft (OpenAI: 429 mit code=insufficient_quota).
+    // Bewusst getrennt von RateLimited: die Ursache ist Billing, nicht Frequenz.
+    class InsufficientQuota(
+        message: String = "Kein Guthaben/Kontingent. Prüfe Billing beim Provider.",
+    ) : LlmError(message)
+
     class Network(
         message: String,
         cause: Throwable? = null,

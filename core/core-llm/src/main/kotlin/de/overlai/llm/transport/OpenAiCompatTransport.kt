@@ -128,13 +128,26 @@ internal class OpenAiCompatTransport(
 
     private fun mapHttpError(response: Response): LlmError {
         val bodyText = runCatching { response.body?.string().orEmpty() }.getOrDefault("")
-        val apiMsg =
+        val error =
             runCatching {
-                json.decodeFromString(OpenAiErrorEnvelope.serializer(), bodyText).error?.message
-            }.getOrNull() ?: bodyText.take(ERROR_SNIPPET_LEN)
+                json.decodeFromString(OpenAiErrorEnvelope.serializer(), bodyText).error
+            }.getOrNull()
+        val apiMsg = error?.message ?: bodyText.take(ERROR_SNIPPET_LEN)
+        val code = error?.code ?: error?.type
+
         return when (response.code) {
-            HTTP_UNAUTHORIZED, HTTP_FORBIDDEN -> LlmError.Unauthorized()
-            HTTP_TOO_MANY_REQUESTS -> LlmError.RateLimited()
+            HTTP_UNAUTHORIZED, HTTP_FORBIDDEN -> LlmError.Unauthorized(apiMsg.ifBlank { "API-Key ungültig oder fehlt" })
+            HTTP_TOO_MANY_REQUESTS ->
+                // 429 ist NICHT immer Rate-Limit: OpenAI nutzt es auch für
+                // erschöpftes Guthaben (insufficient_quota) — die Ursache ist Billing.
+                if (code == "insufficient_quota" || apiMsg.contains("quota", ignoreCase = true)) {
+                    LlmError.InsufficientQuota(
+                        "Kein Guthaben/Kontingent bei diesem Key. Prüfe Billing/Credits beim Provider. " +
+                            "(Provider-Meldung: $apiMsg)",
+                    )
+                } else {
+                    LlmError.RateLimited("Zu viele Anfragen — kurz warten. (Provider: $apiMsg)")
+                }
             else -> LlmError.Api(response.code, apiMsg)
         }
     }

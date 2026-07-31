@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
@@ -24,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -82,11 +84,28 @@ fun OnboardingScreen(
                 }
             }
 
+            HorizontalDivider()
+
+            // Deutlich hervorgehobene Zuordnung: welcher Key gehört zu welchem Provider.
+            Text(
+                "API-Key für ${state.selectedProvider.displayName}",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            if (state.selectedKeyHint.isNotEmpty()) {
+                Text(
+                    "Key erstellen/kopieren unter: ${state.selectedKeyHint}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
             OutlinedTextField(
                 value = state.apiKeyInput,
                 onValueChange = viewModel::onKeyInputChange,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("API-Key") },
+                label = { Text("${state.selectedProvider.displayName}-API-Key") },
+                placeholder = { Text("Key hier einfügen") },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),

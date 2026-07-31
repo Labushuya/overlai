@@ -106,7 +106,8 @@ class ChatViewModel(
     private fun mapError(e: Throwable): String =
         when (e) {
             is LlmError.Unauthorized -> "API-Key ungültig — bitte im Onboarding prüfen."
-            is LlmError.RateLimited -> "Rate-Limit erreicht — später erneut versuchen."
+            is LlmError.InsufficientQuota -> e.message ?: "Kein Guthaben/Kontingent beim Provider."
+            is LlmError.RateLimited -> e.message ?: "Rate-Limit erreicht — später erneut versuchen."
             is LlmError.Network -> "Netzwerkfehler: ${e.message}"
             is LlmError.Api -> "Provider-Fehler: ${e.message}"
             else -> "Unbekannter Fehler: ${e.message}"

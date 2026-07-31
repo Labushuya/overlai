@@ -19,7 +19,23 @@ data class OnboardingUiState(
     val apiKeyInput: String = "",
     val keyPresentFor: Set<String> = emptySet(),
     val savedMessage: String? = null,
-)
+) {
+    val selectedProvider: ProviderConfig
+        get() = providers.firstOrNull { it.id == selectedProviderId } ?: ProviderRegistry.OPENAI
+
+    // Woher bekommt man den Key? Hinweis-URL je Provider (in der UI angezeigt).
+    val selectedKeyHint: String
+        get() =
+            when (selectedProviderId) {
+                "openai" -> "platform.openai.com/api-keys"
+                "anthropic" -> "console.anthropic.com/settings/keys"
+                "grok" -> "console.x.ai"
+                "deepseek" -> "platform.deepseek.com/api_keys"
+                "kimi" -> "platform.moonshot.ai"
+                "openrouter" -> "openrouter.ai/keys"
+                else -> ""
+            }
+}
 
 class OnboardingViewModel(
     private val keyVault: KeyVault,

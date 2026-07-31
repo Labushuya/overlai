@@ -77,8 +77,10 @@ class QuickActionViewModel(
     private fun mapError(e: Throwable): String =
         when (e) {
             is LlmError.Unauthorized -> "API-Key ungültig."
-            is LlmError.RateLimited -> "Rate-Limit erreicht."
+            is LlmError.InsufficientQuota -> e.message ?: "Kein Guthaben/Kontingent beim Provider."
+            is LlmError.RateLimited -> e.message ?: "Rate-Limit erreicht."
             is LlmError.Network -> "Netzwerkfehler."
+            is LlmError.Api -> "Provider-Fehler: ${e.message}"
             else -> "Fehler: ${e.message}"
         }
 }

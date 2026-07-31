@@ -133,6 +133,33 @@ class OpenAiCompatProviderTest {
         }
 
     @Test
+    fun `429 with insufficient_quota maps to InsufficientQuota (not RateLimited)`() =
+        runTest {
+            // OpenAI schickt bei erschöpftem Guthaben 429 mit code=insufficient_quota.
+            server.enqueue(
+                MockResponse()
+                    .setResponseCode(429)
+                    .setBody(
+                        """{"error":{"message":"You exceeded your current quota","type":"insufficient_quota",""" +
+                            """"code":"insufficient_quota"}}""",
+                    ),
+            )
+
+            val provider = factory.create(mockConfig())
+            var caught: Throwable? = null
+            try {
+                provider
+                    .chat(
+                        ChatRequest(model = "gpt-4o", messages = listOf(ChatMessage(Role.USER, "hi"))),
+                        apiKey = "sk",
+                    ).toList()
+            } catch (e: Throwable) {
+                caught = e
+            }
+            assertThat(caught).isInstanceOf(LlmError.InsufficientQuota::class.java)
+        }
+
+    @Test
     fun `vision request serializes image as data url part`() =
         runTest {
             server.enqueue(
