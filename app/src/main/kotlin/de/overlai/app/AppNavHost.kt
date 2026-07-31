@@ -14,6 +14,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import de.overlai.core.data.SettingsStore
 import de.overlai.feature.chat.ChatScreen
 import de.overlai.feature.chat.ChatViewModel
 import de.overlai.feature.onboarding.OnboardingScreen
@@ -23,8 +24,8 @@ import de.overlai.feature.permissions.PermissionHubScreen
 import de.overlai.feature.permissions.PermissionHubState
 import de.overlai.feature.permissions.PermissionItem
 import de.overlai.llm.ProviderFactory
-import de.overlai.llm.providers.ProviderRegistry
 import de.overlai.security.KeyVault
+import kotlinx.coroutines.flow.first
 
 // CHANGE-MARKER v0.1.0: Navigation (siehe CHANGELOG.md)
 // Zentraler Navigations-Graph. Die ViewModels haben bewusst einfache
@@ -40,6 +41,7 @@ object Routes {
 fun AppNavHost(
     keyVault: KeyVault,
     providerFactory: ProviderFactory,
+    settingsStore: SettingsStore,
     navController: NavHostController,
     modifier: Modifier = Modifier,
 ) {
@@ -54,12 +56,14 @@ fun AppNavHost(
                     factory =
                         simpleFactory {
                             ChatViewModel(
-                                providerConfig = ProviderRegistry.OPENAI,
                                 providerFactory = providerFactory,
                                 keyVault = keyVault,
+                                settingsStore = settingsStore,
                             )
                         },
                 )
+            // Nach Rückkehr aus dem Onboarding den aktiven Provider neu laden.
+            LaunchedEffect(Unit) { vm.refreshActiveProvider() }
             ChatScreen(
                 viewModel = vm,
                 onOpenOnboarding = { navController.navigate(Routes.ONBOARDING) },
@@ -69,7 +73,7 @@ fun AppNavHost(
         composable(Routes.ONBOARDING) {
             val vm =
                 viewModel<OnboardingViewModel>(
-                    factory = simpleFactory { OnboardingViewModel(keyVault) },
+                    factory = simpleFactory { OnboardingViewModel(keyVault, settingsStore) },
                 )
             OnboardingScreen(
                 viewModel = vm,
@@ -82,6 +86,7 @@ fun AppNavHost(
             var state by remember { mutableStateOf(PermissionHubState()) }
             // Bei jedem Betreten neu prüfen (Nutzer kommt oft aus den Settings zurück).
             LaunchedEffect(Unit) {
+                val activeId = settingsStore.activeProviderId.first()
                 state =
                     PermissionHubState(
                         items =
@@ -90,7 +95,7 @@ fun AppNavHost(
                                     id = "api_key",
                                     title = "API-Key hinterlegt",
                                     rationale = "OverlAI braucht deinen Provider-Key (BYOK), um Anfragen zu senden.",
-                                    granted = keyVault.hasKey(ProviderRegistry.OPENAI.id),
+                                    granted = keyVault.hasKey(activeId),
                                     fixIsSystemSetting = false,
                                 ),
                                 PermissionItem(

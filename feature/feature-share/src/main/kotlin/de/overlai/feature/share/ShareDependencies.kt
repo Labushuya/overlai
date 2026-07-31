@@ -3,6 +3,7 @@ package de.overlai.feature.share
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import de.overlai.core.data.SettingsStore
 import de.overlai.llm.ProviderFactory
 import de.overlai.security.KeyVault
 
@@ -16,4 +17,6 @@ interface ShareDependencies {
     fun keyVault(): KeyVault
 
     fun providerFactory(): ProviderFactory
+
+    fun settingsStore(): SettingsStore
 }

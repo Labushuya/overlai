@@ -30,6 +30,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import de.overlai.llm.providers.ProviderRegistry
 
 // CHANGE-MARKER v0.1.0: Onboarding/BYOK (siehe CHANGELOG.md)
 // BYOK-Onboarding: Provider wählen, eigenen API-Key eingeben (maskiert), speichern.
@@ -109,6 +110,14 @@ private fun ProviderList(
                 onClick = { onSelect(provider.id) },
             )
             Text(provider.displayName, modifier = Modifier.weight(1f))
+            if (provider.id in ProviderRegistry.FREE_TIER_IDS) {
+                Text(
+                    "Gratis-Tier",
+                    color = MaterialTheme.colorScheme.tertiary,
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(end = 8.dp),
+                )
+            }
             if (provider.id in keyPresentFor) {
                 Text("✓ Key", color = MaterialTheme.colorScheme.primary)
             }

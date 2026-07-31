@@ -2,6 +2,7 @@ package de.overlai.feature.onboarding
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import de.overlai.core.data.SettingsStore
 import de.overlai.llm.ProviderConfig
 import de.overlai.llm.providers.ProviderRegistry
 import de.overlai.security.KeyVault
@@ -39,6 +40,7 @@ data class OnboardingUiState(
 
 class OnboardingViewModel(
     private val keyVault: KeyVault,
+    private val settingsStore: SettingsStore,
 ) : ViewModel() {
     private val _state = MutableStateFlow(OnboardingUiState())
     val state: StateFlow<OnboardingUiState> = _state.asStateFlow()
@@ -61,7 +63,10 @@ class OnboardingViewModel(
         if (key.isEmpty()) return
         viewModelScope.launch {
             keyVault.putKey(id, key)
-            _state.value = _state.value.copy(apiKeyInput = "", savedMessage = "Key gespeichert.")
+            // Den soeben eingerichteten Provider auch app-weit aktiv setzen,
+            // damit der Chat ihn direkt nutzt.
+            settingsStore.setActiveProvider(id)
+            _state.value = _state.value.copy(apiKeyInput = "", savedMessage = "Key gespeichert & als aktiv gesetzt.")
             refreshKeyPresence()
         }
     }

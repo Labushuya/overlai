@@ -49,7 +49,7 @@ object ProviderRegistry {
                     Capability.WEB_SEARCH_NATIVE,
                     Capability.TOOL_USE,
                 ),
-            defaultModel = "claude-sonnet-4-5",
+            defaultModel = "claude-sonnet-5",
             chatPath = "/v1/messages",
             requiresMaxTokens = true,
             systemPlacement = SystemPlacement.TOP_LEVEL,
@@ -97,8 +97,26 @@ object ProviderRegistry {
             defaultModel = "openai/gpt-4o",
         )
 
-    // Reihenfolge = Anzeige-Reihenfolge im Provider-Picker. OpenAI zuerst (MVP).
-    val all: List<ProviderConfig> = listOf(OPENAI, ANTHROPIC, GROK, DEEPSEEK, KIMI, OPENROUTER)
+    // Google Gemini über den OpenAI-kompatiblen Shim-Endpoint (/v1beta/openai/).
+    // Kostenloser Tier mit großzügigem Kontingent (Flash-Modelle) — daher für den
+    // "kostenlos testen"-Fokus interessant. Vor Ship verifizieren (Feasibility §4).
+    val GEMINI =
+        ProviderConfig(
+            id = "gemini",
+            displayName = "Google Gemini (free tier)",
+            baseUrl = "https://generativelanguage.googleapis.com/v1beta/openai",
+            authScheme = AuthScheme.Bearer,
+            capabilities =
+                setOf(Capability.CHAT, Capability.VISION, Capability.WEB_SEARCH_NATIVE, Capability.TOOL_USE),
+            defaultModel = "gemini-2.0-flash",
+        )
+
+    // IDs von Providern mit kostenlosem/gratis-Tier — im Onboarding markiert.
+    val FREE_TIER_IDS: Set<String> = setOf("gemini", "openrouter")
+
+    // Reihenfolge = Anzeige-Reihenfolge im Provider-Picker. OpenAI zuerst (MVP),
+    // dann die kostenlosen Optionen (Gemini/OpenRouter) prominent.
+    val all: List<ProviderConfig> = listOf(OPENAI, GEMINI, OPENROUTER, ANTHROPIC, GROK, DEEPSEEK, KIMI)
 
     fun byId(id: String): ProviderConfig? = all.firstOrNull { it.id == id }
 }

@@ -1,5 +1,6 @@
 package de.overlai.llm
 
+import de.overlai.llm.providers.AnthropicProvider
 import de.overlai.llm.providers.OpenAiCompatProvider
 import de.overlai.llm.providers.ProviderRegistry
 import kotlinx.serialization.json.Json
@@ -9,14 +10,14 @@ import java.util.concurrent.TimeUnit
 // CHANGE-MARKER v0.1.0: Provider-Abstraktion (siehe CHANGELOG.md)
 // Erzeugt LlmProvider-Instanzen aus einer ProviderConfig. Zentrale Stelle für
 // den OkHttpClient (Timeouts; Cert-Pinning wird hier in M1/M5 ergänzt) und die
-// Json-Konfiguration. Anthropic wird in M5 hier auf seinen eigenen Adapter geroutet.
+// Json-Konfiguration. Anthropic wird auf seinen eigenen Adapter geroutet.
 class ProviderFactory(
     private val client: OkHttpClient = defaultClient(),
     private val json: Json = defaultJson(),
 ) {
     fun create(config: ProviderConfig): LlmProvider =
         when (config.id) {
-            // TODO(M5): "anthropic" -> AnthropicProvider(config, client, json)
+            "anthropic" -> AnthropicProvider(config, client, json)
             else -> OpenAiCompatProvider(config, client, json)
         }
 

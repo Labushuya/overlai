@@ -15,7 +15,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.EntryPointAccessors
 import de.overlai.core.ui.theme.OverlAiTheme
-import de.overlai.llm.providers.ProviderRegistry
 
 // CHANGE-MARKER v0.1.0: Entry-Points (siehe CHANGELOG.md)
 // ACTION_PROCESS_TEXT: "OverlAI" im Text-Selektions-Menü jeder App. Nimmt die
@@ -95,8 +94,8 @@ internal fun quickActionFactory(deps: ShareDependencies): ViewModelProvider.Fact
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
             QuickActionViewModel(
-                providerConfig = ProviderRegistry.OPENAI,
                 providerFactory = deps.providerFactory(),
                 keyVault = deps.keyVault(),
+                settingsStore = deps.settingsStore(),
             ) as T
     }

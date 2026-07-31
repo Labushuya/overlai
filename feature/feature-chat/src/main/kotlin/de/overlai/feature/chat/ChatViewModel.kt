@@ -2,36 +2,54 @@ package de.overlai.feature.chat
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import de.overlai.core.data.SettingsStore
 import de.overlai.llm.ChatRequest
 import de.overlai.llm.LlmError
 import de.overlai.llm.ProviderConfig
 import de.overlai.llm.ProviderFactory
 import de.overlai.llm.Role
+import de.overlai.llm.providers.ProviderRegistry
 import de.overlai.security.KeyVault
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.launch
 
 // CHANGE-MARKER v0.1.0: Chat-UI (siehe CHANGELOG.md)
-// Verbindet die BYOK-Kette mit der UI: liest den Key aus dem KeyVault, ruft den
-// Provider (Streaming), akkumuliert Deltas in die letzte Assistant-Nachricht.
+// Verbindet die BYOK-Kette mit der UI: liest den AKTIVEN Provider (SettingsStore),
+// den Key aus dem KeyVault, ruft den Provider (Streaming), akkumuliert Deltas.
 // Kein @HiltViewModel hier im Modul, um core-* frei von DI-Annotationen zu halten;
 // die Verdrahtung passiert im :app-Modul (Factory).
 class ChatViewModel(
-    private val providerConfig: ProviderConfig,
     private val providerFactory: ProviderFactory,
     private val keyVault: KeyVault,
+    private val settingsStore: SettingsStore,
 ) : ViewModel() {
-    private val _state = MutableStateFlow(ChatUiState(providerName = providerConfig.displayName))
+    private val _state = MutableStateFlow(ChatUiState())
     val state: StateFlow<ChatUiState> = _state.asStateFlow()
 
     init {
+        refreshActiveProvider()
+    }
+
+    // Aktiven Provider (neu) laden — z.B. nach Rückkehr aus dem Onboarding.
+    fun refreshActiveProvider() {
         viewModelScope.launch {
-            _state.value = _state.value.copy(hasApiKey = keyVault.hasKey(providerConfig.id))
+            val config = activeConfig()
+            _state.value =
+                _state.value.copy(
+                    providerName = config.displayName,
+                    hasApiKey = keyVault.hasKey(config.id),
+                )
         }
+    }
+
+    private suspend fun activeConfig(): ProviderConfig {
+        val id = settingsStore.activeProviderId.first()
+        return ProviderRegistry.byId(id) ?: ProviderRegistry.OPENAI
     }
 
     fun onInputChange(text: String) {
@@ -53,20 +71,17 @@ class ChatViewModel(
             )
 
         viewModelScope.launch {
-            val apiKey = keyVault.getKey(providerConfig.id)
+            val config = activeConfig()
+            val apiKey = keyVault.getKey(config.id)
             if (apiKey.isNullOrBlank()) {
-                finishWithError("Kein API-Key für ${providerConfig.displayName} hinterlegt.")
+                finishWithError("Kein API-Key für ${config.displayName} hinterlegt.")
                 return@launch
             }
 
             val history = _state.value.messages.filter { !it.streaming }.map { it.toDomain() }
-            val request =
-                ChatRequest(
-                    model = providerConfig.defaultModel,
-                    messages = history,
-                )
+            val request = ChatRequest(model = config.defaultModel, messages = history)
 
-            val provider = providerFactory.create(providerConfig)
+            val provider = providerFactory.create(config)
             val builder = StringBuilder()
             provider
                 .chat(request, apiKey)
@@ -98,7 +113,6 @@ class ChatViewModel(
     }
 
     private fun finishWithError(message: String) {
-        // Streaming-Platzhalter (leere Assistant-Nachricht) entfernen.
         val msgs = _state.value.messages.filterNot { it.role == Role.ASSISTANT && it.text.isEmpty() }
         _state.value = _state.value.copy(messages = msgs, isStreaming = false, error = message)
     }

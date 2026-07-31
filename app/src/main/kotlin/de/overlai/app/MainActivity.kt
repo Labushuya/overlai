@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.rememberNavController
 import dagger.hilt.android.AndroidEntryPoint
+import de.overlai.core.data.SettingsStore
 import de.overlai.core.ui.theme.OverlAiTheme
 import de.overlai.llm.ProviderFactory
 import de.overlai.security.KeyVault
@@ -24,11 +25,13 @@ class MainActivity : ComponentActivity() {
 
     @Inject lateinit var providerFactory: ProviderFactory
 
+    @Inject lateinit var settingsStore: SettingsStore
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            OverlAiApp(keyVault, providerFactory)
+            OverlAiApp(keyVault, providerFactory, settingsStore)
         }
     }
 }
@@ -37,6 +40,7 @@ class MainActivity : ComponentActivity() {
 private fun OverlAiApp(
     keyVault: KeyVault,
     providerFactory: ProviderFactory,
+    settingsStore: SettingsStore,
 ) {
     OverlAiTheme {
         val navController = rememberNavController()
@@ -44,6 +48,7 @@ private fun OverlAiApp(
             AppNavHost(
                 keyVault = keyVault,
                 providerFactory = providerFactory,
+                settingsStore = settingsStore,
                 navController = navController,
                 modifier = Modifier.padding(innerPadding),
             )

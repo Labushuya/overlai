@@ -9,5 +9,6 @@ dependencies {
     implementation(project(":core:core-common"))
     implementation(project(":core:core-llm"))
     implementation(project(":core:core-security"))
+    implementation(project(":core:core-data"))
     implementation(project(":feature:feature-ocr"))
 }

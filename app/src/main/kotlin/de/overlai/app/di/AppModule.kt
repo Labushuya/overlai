@@ -6,6 +6,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import de.overlai.core.data.SettingsStore
 import de.overlai.llm.ProviderFactory
 import de.overlai.security.KeyVault
 import de.overlai.security.TinkKeyVault
@@ -26,4 +27,10 @@ object AppModule {
     @Provides
     @Singleton
     fun provideProviderFactory(): ProviderFactory = ProviderFactory()
+
+    @Provides
+    @Singleton
+    fun provideSettingsStore(
+        @ApplicationContext context: Context,
+    ): SettingsStore = SettingsStore(context)
 }
