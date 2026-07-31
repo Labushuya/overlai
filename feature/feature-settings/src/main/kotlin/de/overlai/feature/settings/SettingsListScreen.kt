@@ -4,7 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.item
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Key
@@ -67,7 +67,7 @@ fun SettingsListScreen(
     }
 }
 
-private fun androidx.compose.foundation.lazy.LazyListScope.settingsRow(
+private fun LazyListScope.settingsRow(
     title: String,
     icon: ImageVector,
     route: String,
