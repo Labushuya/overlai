@@ -51,48 +51,11 @@ fun AppNavHost(
         modifier = modifier,
     ) {
         composable(Routes.CHAT) {
-            val vm =
-                viewModel<ChatViewModel>(
-                    factory =
-                        simpleFactory {
-                            ChatViewModel(
-                                providerFactory = deps.providerFactory,
-                                keyVault = deps.keyVault,
-                                settingsStore = deps.settingsStore,
-                            )
-                        },
-                )
-            // First-run: einmalig ins Provider-Setup routen, wenn noch kein Key +
-            // Onboarding noch nie gezeigt. Flag persistiert, damit es einmalig bleibt.
-            LaunchedEffect(Unit) {
-                vm.refreshActiveProvider()
-                val shown = deps.settingsStore.onboardingShown.first()
-                val activeId = deps.settingsStore.activeProviderId.first()
-                if (!shown && !deps.keyVault.hasKey(activeId)) {
-                    deps.settingsStore.markOnboardingShown()
-                    navController.navigate(SettingsRoutes.PROVIDER)
-                }
-            }
-            ChatScreen(
-                viewModel = vm,
-                onOpenOnboarding = { navController.navigate(SettingsRoutes.PROVIDER) },
-            )
+            ChatRoute(deps, navController)
         }
 
         composable(SettingsRoutes.HOME) {
-            val context = LocalContext.current
-            var providerName by remember { mutableStateOf("") }
-            var hasKey by remember { mutableStateOf(false) }
-            LaunchedEffect(Unit) {
-                val id = deps.settingsStore.activeProviderId.first()
-                providerName = ProviderRegistry.byId(id)?.displayName ?: id
-                hasKey = deps.keyVault.hasKey(id)
-            }
-            SettingsListScreen(
-                activeProviderName = providerName,
-                hasActiveKey = hasKey,
-                onOpen = { navController.navigate(it) },
-            )
+            SettingsHomeRoute(deps, navController)
         }
 
         composable(SettingsRoutes.PROVIDER) {
@@ -145,6 +108,60 @@ fun AppNavHost(
             AboutScreen(versionName = deps.versionName, onBack = { navController.popBackStack() })
         }
     }
+}
+
+// Chat-Route: ViewModel + First-run-Routing ins Provider-Setup.
+@Composable
+private fun ChatRoute(
+    deps: AppDependencies,
+    navController: NavHostController,
+) {
+    val vm =
+        viewModel<ChatViewModel>(
+            factory =
+                simpleFactory {
+                    ChatViewModel(
+                        providerFactory = deps.providerFactory,
+                        keyVault = deps.keyVault,
+                        settingsStore = deps.settingsStore,
+                    )
+                },
+        )
+    // First-run: einmalig ins Provider-Setup routen, wenn noch kein Key +
+    // Onboarding noch nie gezeigt. Flag persistiert, damit es einmalig bleibt.
+    LaunchedEffect(Unit) {
+        vm.refreshActiveProvider()
+        val shown = deps.settingsStore.onboardingShown.first()
+        val activeId = deps.settingsStore.activeProviderId.first()
+        if (!shown && !deps.keyVault.hasKey(activeId)) {
+            deps.settingsStore.markOnboardingShown()
+            navController.navigate(SettingsRoutes.PROVIDER)
+        }
+    }
+    ChatScreen(
+        viewModel = vm,
+        onOpenOnboarding = { navController.navigate(SettingsRoutes.PROVIDER) },
+    )
+}
+
+// Einstellungs-Übersicht: lädt aktiven Provider + Key-Status für die Hero-Card.
+@Composable
+private fun SettingsHomeRoute(
+    deps: AppDependencies,
+    navController: NavHostController,
+) {
+    var providerName by remember { mutableStateOf("") }
+    var hasKey by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        val id = deps.settingsStore.activeProviderId.first()
+        providerName = ProviderRegistry.byId(id)?.displayName ?: id
+        hasKey = deps.keyVault.hasKey(id)
+    }
+    SettingsListScreen(
+        activeProviderName = providerName,
+        hasActiveKey = hasKey,
+        onOpen = { navController.navigate(it) },
+    )
 }
 
 // Permission-Hub als eigene Route-Composable (hält den Live-Status).

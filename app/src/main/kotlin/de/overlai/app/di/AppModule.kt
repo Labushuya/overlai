@@ -57,9 +57,7 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideUpdateChecker(
-        client: OkHttpClient,
-    ): UpdateChecker =
+    fun provideUpdateChecker(client: OkHttpClient): UpdateChecker =
         UpdateChecker(
             client = client,
             json = Json { ignoreUnknownKeys = true },

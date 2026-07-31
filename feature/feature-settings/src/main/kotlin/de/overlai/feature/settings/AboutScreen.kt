@@ -37,6 +37,7 @@ fun AboutScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+
     fun open(url: String) = context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
 
     Scaffold(
