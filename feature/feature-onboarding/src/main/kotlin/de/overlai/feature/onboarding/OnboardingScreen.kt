@@ -62,81 +62,112 @@ fun OnboardingScreen(
                 style = MaterialTheme.typography.bodyMedium,
             )
 
-            state.providers.forEach { provider ->
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .selectable(
-                                selected = provider.id == state.selectedProviderId,
-                                onClick = { viewModel.onSelectProvider(provider.id) },
-                            ).padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    RadioButton(
-                        selected = provider.id == state.selectedProviderId,
-                        onClick = { viewModel.onSelectProvider(provider.id) },
-                    )
-                    Text(provider.displayName, modifier = Modifier.weight(1f))
-                    if (provider.id in state.keyPresentFor) {
-                        Text("✓ Key", color = MaterialTheme.colorScheme.primary)
-                    }
-                }
-            }
+            ProviderList(
+                providers = state.providers,
+                selectedId = state.selectedProviderId,
+                keyPresentFor = state.keyPresentFor,
+                onSelect = viewModel::onSelectProvider,
+            )
 
             HorizontalDivider()
 
-            // Deutlich hervorgehobene Zuordnung: welcher Key gehört zu welchem Provider.
-            Text(
-                "API-Key für ${state.selectedProvider.displayName}",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
+            KeyEntrySection(
+                state = state,
+                onKeyInputChange = viewModel::onKeyInputChange,
+                onSaveKey = viewModel::onSaveKey,
+                onRemoveKey = { viewModel.onRemoveKey(state.selectedProviderId) },
             )
-            if (state.selectedKeyHint.isNotEmpty()) {
-                Text(
-                    "Key erstellen/kopieren unter: ${state.selectedKeyHint}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            OutlinedTextField(
-                value = state.apiKeyInput,
-                onValueChange = viewModel::onKeyInputChange,
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("${state.selectedProvider.displayName}-API-Key") },
-                placeholder = { Text("Key hier einfügen") },
-                singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            )
-
-            state.savedMessage?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
-
-            Button(
-                onClick = viewModel::onSaveKey,
-                enabled = state.apiKeyInput.isNotBlank(),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Key speichern")
-            }
-
-            if (state.selectedProviderId in state.keyPresentFor) {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text("Key hinterlegt.", modifier = Modifier.weight(1f).padding(start = 8.dp))
-                        TextButton(onClick = { viewModel.onRemoveKey(state.selectedProviderId) }) {
-                            Text("Entfernen")
-                        }
-                    }
-                }
-            }
 
             TextButton(onClick = onDone, modifier = Modifier.fillMaxWidth()) {
                 Text("Fertig")
+            }
+        }
+    }
+}
+
+// Provider-Auswahlliste (Radio + "✓ Key"-Marker bei hinterlegtem Key).
+@Composable
+private fun ProviderList(
+    providers: List<de.overlai.llm.ProviderConfig>,
+    selectedId: String,
+    keyPresentFor: Set<String>,
+    onSelect: (String) -> Unit,
+) {
+    providers.forEach { provider ->
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .selectable(
+                        selected = provider.id == selectedId,
+                        onClick = { onSelect(provider.id) },
+                    ).padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            RadioButton(
+                selected = provider.id == selectedId,
+                onClick = { onSelect(provider.id) },
+            )
+            Text(provider.displayName, modifier = Modifier.weight(1f))
+            if (provider.id in keyPresentFor) {
+                Text("✓ Key", color = MaterialTheme.colorScheme.primary)
+            }
+        }
+    }
+}
+
+// Key-Eingabe für den GEWÄHLTEN Provider — mit klarer Zuordnung + Hinweis-URL.
+@Composable
+private fun KeyEntrySection(
+    state: OnboardingUiState,
+    onKeyInputChange: (String) -> Unit,
+    onSaveKey: () -> Unit,
+    onRemoveKey: () -> Unit,
+) {
+    Text(
+        "API-Key für ${state.selectedProvider.displayName}",
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold,
+    )
+    if (state.selectedKeyHint.isNotEmpty()) {
+        Text(
+            "Key erstellen/kopieren unter: ${state.selectedKeyHint}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+
+    OutlinedTextField(
+        value = state.apiKeyInput,
+        onValueChange = onKeyInputChange,
+        modifier = Modifier.fillMaxWidth(),
+        label = { Text("${state.selectedProvider.displayName}-API-Key") },
+        placeholder = { Text("Key hier einfügen") },
+        singleLine = true,
+        visualTransformation = PasswordVisualTransformation(),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+    )
+
+    state.savedMessage?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
+
+    Button(
+        onClick = onSaveKey,
+        enabled = state.apiKeyInput.isNotBlank(),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text("Key speichern")
+    }
+
+    if (state.selectedProviderId in state.keyPresentFor) {
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Key hinterlegt.", modifier = Modifier.weight(1f).padding(start = 8.dp))
+                TextButton(onClick = onRemoveKey) {
+                    Text("Entfernen")
+                }
             }
         }
     }
