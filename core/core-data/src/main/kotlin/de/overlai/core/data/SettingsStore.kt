@@ -42,6 +42,23 @@ class SettingsStore(
         context.settingsStore.edit { it[activeProviderKey] = providerId }
     }
 
+    // Pro-Provider gewähltes Modell (ein Key je Provider — Preferences hat keinen
+    // Map-Typ; distinctUntilChanged bleibt scoped). Null = noch keine Wahl -> die
+    // Engine nimmt config.defaultModel.
+    private fun activeModelKey(providerId: String) = stringPreferencesKey("active_model_id.$providerId")
+
+    fun activeModelId(providerId: String): Flow<String?> =
+        context.settingsStore.data
+            .map { it[activeModelKey(providerId)] }
+            .distinctUntilChanged()
+
+    suspend fun setActiveModel(
+        providerId: String,
+        modelId: String,
+    ) {
+        context.settingsStore.edit { it[activeModelKey(providerId)] = modelId }
+    }
+
     // Theme-Präferenzen. distinctUntilChanged ist load-bearing: data{} emittiert
     // bei JEDEM Write (auch active_provider_id), sonst rekomponiert das Theme grundlos.
     val themePreferences: Flow<ThemePreferences> =

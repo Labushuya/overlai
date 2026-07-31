@@ -34,6 +34,7 @@ import de.overlai.feature.settings.SettingsRoutes
 import de.overlai.feature.updater.ApkDownloader
 import de.overlai.feature.updater.PackageInstallerSession
 import de.overlai.feature.updater.UpdateChecker
+import de.overlai.llm.HttpModelCatalog
 import de.overlai.llm.ProviderFactory
 import de.overlai.security.KeyVault
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -56,6 +57,8 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var apkDownloader: ApkDownloader
 
     @Inject lateinit var packageInstaller: PackageInstallerSession
+
+    @Inject lateinit var modelCatalog: HttpModelCatalog
 
     // Vor dem ersten Frame gesetzt; Splash hält, solange null.
     private val themeState = MutableStateFlow<ThemePreferences?>(null)
@@ -86,6 +89,7 @@ class MainActivity : ComponentActivity() {
                         updateChecker = updateChecker,
                         apkDownloader = apkDownloader,
                         packageInstaller = packageInstaller,
+                        modelCatalog = modelCatalog,
                         versionName = versionName(),
                     ),
             )
@@ -106,6 +110,7 @@ class AppDependencies(
     val updateChecker: UpdateChecker,
     val apkDownloader: ApkDownloader,
     val packageInstaller: PackageInstallerSession,
+    val modelCatalog: HttpModelCatalog,
     val versionName: String,
 )
 

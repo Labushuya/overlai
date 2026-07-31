@@ -63,9 +63,10 @@ class QuickActionViewModel(
                 return@launch
             }
 
+            val selectedModel = settingsStore.activeModelId(config.id).first()
             val request =
                 ChatRequest(
-                    model = config.defaultModel,
+                    model = selectedModel ?: config.defaultModel,
                     messages = listOf(ChatMessage(Role.USER, action.buildPrompt(source))),
                 )
             val provider = providerFactory.create(config)

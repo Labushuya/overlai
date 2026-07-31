@@ -10,4 +10,7 @@ object SettingsRoutes {
     const val UPDATES = "settings/updates"
     const val ABOUT = "settings/about"
     const val APPEARANCE = "settings/appearance"
+    const val MODELS = "settings/models/{providerId}"
+
+    fun models(providerId: String) = "settings/models/$providerId"
 }

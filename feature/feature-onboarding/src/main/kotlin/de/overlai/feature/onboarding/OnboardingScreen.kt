@@ -39,6 +39,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 fun OnboardingScreen(
     viewModel: OnboardingViewModel,
     onDone: () -> Unit,
+    onChooseModel: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -77,6 +78,16 @@ fun OnboardingScreen(
                 onSaveKey = viewModel::onSaveKey,
                 onRemoveKey = { viewModel.onRemoveKey(state.selectedProviderId) },
             )
+
+            // Modell-Katalog nur anbieten, wenn für den gewählten Provider ein Key da ist.
+            if (state.selectedProviderId in state.keyPresentFor) {
+                TextButton(
+                    onClick = { onChooseModel(state.selectedProviderId) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Modell wählen")
+                }
+            }
 
             TextButton(onClick = onDone, modifier = Modifier.fillMaxWidth()) {
                 Text("Fertig")

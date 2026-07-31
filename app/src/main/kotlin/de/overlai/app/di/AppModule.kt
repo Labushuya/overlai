@@ -11,6 +11,7 @@ import de.overlai.core.data.SettingsStore
 import de.overlai.feature.updater.ApkDownloader
 import de.overlai.feature.updater.PackageInstallerSession
 import de.overlai.feature.updater.UpdateChecker
+import de.overlai.llm.HttpModelCatalog
 import de.overlai.llm.ProviderFactory
 import de.overlai.security.KeyVault
 import de.overlai.security.TinkKeyVault
@@ -79,4 +80,9 @@ object AppModule {
     fun providePackageInstallerSession(
         @ApplicationContext context: Context,
     ): PackageInstallerSession = PackageInstallerSession(context)
+
+    @Provides
+    @Singleton
+    fun provideModelCatalog(client: OkHttpClient): HttpModelCatalog =
+        HttpModelCatalog(client, ProviderFactory.defaultJson())
 }

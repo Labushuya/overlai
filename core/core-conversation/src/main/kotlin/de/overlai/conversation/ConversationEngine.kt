@@ -52,7 +52,9 @@ class ConversationEngine(
                 emit(Event.Failed("Kein API-Key für ${config.displayName} hinterlegt."))
                 return@flow
             }
-            val request = ChatRequest(model = config.defaultModel, messages = messages)
+            // Gewähltes Modell (aus dem Katalog) bevorzugen; sonst Provider-Default.
+            val selectedModel = settingsStore.activeModelId(config.id).first()
+            val request = ChatRequest(model = selectedModel ?: config.defaultModel, messages = messages)
             providerFactory
                 .create(config)
                 .chat(request, apiKey)

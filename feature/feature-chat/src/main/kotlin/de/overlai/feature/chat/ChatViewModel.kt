@@ -79,7 +79,9 @@ class ChatViewModel(
             }
 
             val history = _state.value.messages.filter { !it.streaming }.map { it.toDomain() }
-            val request = ChatRequest(model = config.defaultModel, messages = history)
+            // Gewähltes Modell (Katalog) bevorzugen; sonst Provider-Default.
+            val selectedModel = settingsStore.activeModelId(config.id).first()
+            val request = ChatRequest(model = selectedModel ?: config.defaultModel, messages = history)
 
             val provider = providerFactory.create(config)
             val builder = StringBuilder()
