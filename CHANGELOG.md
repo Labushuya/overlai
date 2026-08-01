@@ -6,6 +6,15 @@ Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1
 die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 Dieser Changelog wird ab dem ersten Release von `release-please` gepflegt.
 
+## [0.4.3](https://github.com/Labushuya/overlai/compare/v0.4.2...v0.4.3) (2026-08-01)
+
+
+### Bug Fixes
+
+* **catalog:** :free nur nach echtem Preis, nicht nach Slug-Suffix ([ef1390c](https://github.com/Labushuya/overlai/commit/ef1390c9c79d428165521cfbc46de3789d00982d))
+* **core-llm:** OpenRouter :free 204-Fehler — code als Zahl verschluckte den Fehler ([f316dca](https://github.com/Labushuya/overlai/commit/f316dca64bf5b24c345848dbe05fad988b7a9d31))
+* **onboarding:** Provider-Setup spiegelt aktiven Zustand statt hart OpenAI ([ad71916](https://github.com/Labushuya/overlai/commit/ad719165282552b0cdd5f469a2370919bf5530c1))
+
 ## [0.4.2](https://github.com/Labushuya/overlai/compare/v0.4.1...v0.4.2) (2026-08-01)
 
 
