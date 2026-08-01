@@ -6,6 +6,25 @@ Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1
 die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 Dieser Changelog wird ab dem ersten Release von `release-please` gepflegt.
 
+## [0.2.0](https://github.com/Labushuya/overlai/compare/v0.1.0...v0.2.0) (2026-08-01)
+
+
+### Features
+
+* **catalog:** Live per-provider Modell-Katalog mit :free-Filter (M-Katalog) ([95b0be9](https://github.com/Labushuya/overlai/commit/95b0be9fc1d58917a355751935edd701aab6be56))
+* **m5:** Anthropic-Adapter + app-weite Provider-Auswahl + Gemini-Shim ([0be8146](https://github.com/Labushuya/overlai/commit/0be81467735fa191c341a5f7027c8974e99ab0ac))
+* **ux:** Bottom-Navigation + Einstellungs-Hub + Theme/Light-Dark + Updater-UI ([0bf3d04](https://github.com/Labushuya/overlai/commit/0bf3d04bc189fc1cbabb784cc626109c75c6d9cc))
+
+
+### Bug Fixes
+
+* **core-llm:** In-Stream-Fehler nicht mehr verschlucken (leere Bubble) ([32a090b](https://github.com/Labushuya/overlai/commit/32a090b722e6442cda5ff36f4ba11d6ba02b7db2))
+* **core-ui:** getValue-Delegate-Import für by rememberUpdatedState in OnResume ([adbf09b](https://github.com/Labushuya/overlai/commit/adbf09b136f673eb9103d36422c6fa1180de86fd))
+* Gemini-Label neutral (kein Kostenversprechen) + Echtzeit-Permission-Status via ON_RESUME ([46d836d](https://github.com/Labushuya/overlai/commit/46d836dd45df3cba522bfd47aedd21b4e4bc31a2))
+* **llm,onboarding:** 429 insufficient_quota != Rate-Limit + Provider-Zuordnung im UI ([5d1edda](https://github.com/Labushuya/overlai/commit/5d1eddaf5297b279a8d1d6ec8af2a8942f0266b9))
+* **settings:** LazyListScope.item ist Member, kein Import; qualifizierten Typ ersetzt ([d319149](https://github.com/Labushuya/overlai/commit/d319149c4a3feda69224770c19a968089f2d994c))
+* **updater:** latest.json über raw.githubusercontent statt github.io (Pages nicht aktiv -&gt; 404) ([b4c1842](https://github.com/Labushuya/overlai/commit/b4c1842230bffdcb36da1ea6287767c61f8d6207))
+
 ## [Unreleased]
 
 ### Added
