@@ -42,6 +42,13 @@ Dieser Changelog wird ab dem ersten Release von `release-please` gepflegt.
 - **In-App-Updater:** `latest.json`-Check, SemVer (Downgrade abgelehnt),
   sha256-Verifikation vor Installation, `PackageInstaller`-Session.
 
+### Changed
+- **Provider-Setup spiegelt jetzt den echten Zustand.** Der Provider-Screen war
+  immer auf OpenAI vorselektiert, egal welcher Provider aktiv war. Jetzt startet
+  die Auswahl beim app-weit aktiven Provider, markiert ihn mit „● Aktiv", zeigt
+  „✓ Key" bei hinterlegtem Key und das aktuell gewählte Modell (reaktiv, auch nach
+  Rückkehr aus dem Modell-Katalog).
+
 ### Fixed
 - **Leere Chat-Bubble bei In-Stream-Fehlern:** Manche OpenAI-kompatible Provider
   (v.a. OpenRouter `:free`) antworten mit HTTP 200 und liefern den Fehler erst als
