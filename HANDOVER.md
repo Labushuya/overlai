@@ -52,7 +52,7 @@ Architektur: `feature-*` hängen nur an `core-*`, nie aneinander; Wiring/DI nur 
 
 **Sofort:**
 1. ~~v0.5.0-APK-Sichtbarkeit klären~~ **ERLEDIGT** — APK vorhanden, v0.5.0 am Gerät getestet, funktional.
-2. **v0.5.0 Gerätetest (Rest):** Provider-Hub läuft; Kimi ok. Offen zum Gegenprüfen: OpenRouter (echtes Modell) + DeepSeek mit `stream`-Fix; Anthropic (eigener Adapter) separat — **`stream`-Fix ist in v0.5.1 released, jetzt am Gerät testbar** (auf v0.5.1 updaten, dann testen). OpenRouter: bezahltes Modell nehmen (`openai/gpt-4o-mini`), nicht `:free` (oft abgeschaltet → Fehler fälschlich dem Fix zugeschrieben). DeepSeek: `deepseek-chat` = einfacher Fall; `deepseek-reasoner` (R1) streamt erst `reasoning_content`.
+2. ~~v0.5.0/v0.5.1 Gerätetest~~ **ERLEDIGT (2026-08-01):** Alle Provider **außer Grok** mit bezahltem API-Zugang am Gerät getestet — funktional (inkl. Anthropic mit dem v0.5.1-`stream`-Fix, OpenRouter, DeepSeek). Der `stream`-Fix hält über alle Adapter. **Offen: nur Grok** (xAI) noch ungetestet — Registry-Eintrag da (`baseUrl=https://api.x.ai`, `defaultModel=grok-4.5` = Doku-Fallback), aber ohne bezahltes Konto nicht verifiziert.
 
 **Feinschliff (klein):**
 - „Alle Keys löschen" in Einstellungen (`KeyVault.clear()` existiert, kein Button).
@@ -60,7 +60,9 @@ Architektur: `feature-*` hängen nur an `core-*`, nie aneinander; Wiring/DI nur 
 - Dependabot-PRs abarbeiten (Major-Bumps einzeln + CI prüfen).
 
 **Großer nächster Meilenstein — M3: Overlay-Bubble** (`SYSTEM_ALERT_WINDOW`):
-- Das eigentliche Kern-Feature: KI *über* der laufenden App statt eigener Chat. Floating-Bubble + Panel, Foreground-Service (`specialUse`, nicht `dataSync` wegen 6h-Cap), Permission Hub (full). Erster echter „Platform-Fight", bewusst bis zuletzt aufgeschoben. Danach M4 (AccessibilityService/MediaProjection Screen-Read), M5 ist erledigt (Anthropic-Adapter existiert), M6 (Web-Search-Router + Transcription).
+- **M3.1 Skelett: FERTIG in PR #24 (Branch `feat/overlay-bubble-skeleton`, CI grün inkl. `assembleDebug`; Draft, noch nicht gemergt, Gerätetest offen).** Neues Modul `:feature:feature-overlay`: `OverlayService` (Foreground, `foregroundServiceType=specialUse`, NotificationChannel, `START_NOT_STICKY`, `canDrawOverlays`-Guard), `OverlayWindowController` (Bubble + Panel als `TYPE_APPLICATION_OVERLAY`, Drag/Tap per Touch-Slop), `OverlayLifecycleOwner` (ViewTree-Owner für ComposeView ohne Activity), `OverlayBubble`/`OverlayPanel` (Panel = Platzhalter, KEIN LLM). Permission-Hub um Overlay-Item erweitert; Toggle via `SettingsStore.overlayEnabled` + `OverlaySettingsScreen`, in `:app` mit Service-start/stop verdrahtet.
+- **Nächster Schritt M3.2:** Chat ins Panel — eigene `List<ChatMessage>` + `ConversationEngine.stream()` (core-conversation, schon `@Singleton`) via Hilt-`@EntryPoint` (Vorbild `feature-share/ShareDependencies.kt`), aus dem Service geholt mit `EntryPointAccessors.fromApplication`.
+- Danach M4 (AccessibilityService/MediaProjection Screen-Read), M5 ist erledigt (Anthropic-Adapter existiert), M6 (Web-Search-Router + Transcription).
 
 ---
 
@@ -69,6 +71,7 @@ Architektur: `feature-*` hängen nur an `core-*`, nie aneinander; Wiring/DI nur 
 - **Release cutten:** Release-Please-PR („chore(main): release X.Y.Z") **mergen** (`gh pr merge <n> --squash`). Dann läuft alles automatisch: Tag → `release.yml` via `workflow_run` → signierte APK + Release + `latest.json` auf gh-pages. **Kein Tag-Repush.** Nutzer merged selbst (outward-facing). **Kein `--delete-branch`** anhängen (Nutzer-Feedback).
 - **Verifikation Release:** `gh release view vX.Y.Z --json assets`; `curl -s https://raw.githubusercontent.com/Labushuya/overlai/gh-pages/latest.json`.
 - **Lokal baubar:** nur `:core-llm:test`, `ktlintCheck`, `detekt`, `ktlintFormat`. Android-Module → CI. `.kotlin/` ist gitignored.
+- **Lint lokal IMMER modulübergreifend prüfen:** `./gradlew ktlintCheck detekt --continue` (nicht nur die berührten Module). Import-Ordering-Fehler in `:app` (z.B. neuer `de.overlai.feature.*`-Import an falscher alphabetischer Stelle) fallen sonst erst in CI auf. `ktlintFormat` sortiert sie automatisch. (Einmal in M3.1 gebissen.)
 - **CI beobachten:** `gh run list --workflow=CI --branch=main`, `gh run watch <id> --exit-status`. Node-20-Deprecation-Annotation ist harmlos.
 - **Signing-Key ist load-bearing:** base64-Secret `ANDROID_KEYSTORE_BASE64` (+3 weitere). Muss stabil bleiben, sonst `INSTALL_FAILED_UPDATE_INCOMPATIBLE`.
 - **Bump-Regel:** `fix:` → Patch, `feat:` → Minor (Conventional Commits).
