@@ -6,6 +6,13 @@ Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1
 die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 Dieser Changelog wird ab dem ersten Release von `release-please` gepflegt.
 
+## [0.5.1](https://github.com/Labushuya/overlai/compare/v0.5.0...v0.5.1) (2026-08-01)
+
+
+### Bug Fixes
+
+* **core-llm:** stream:true im Anthropic-Body erzwingen (@EncodeDefault) ([b40cfc0](https://github.com/Labushuya/overlai/commit/b40cfc0d9e29ce74d61dea376aef1580425a189d))
+
 ## [0.5.0](https://github.com/Labushuya/overlai/compare/v0.4.6...v0.5.0) (2026-08-01)
 
 
