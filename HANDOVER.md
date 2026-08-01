@@ -1,6 +1,6 @@
 # OverlAI — Session-Handover
 
-**Stand:** 2026-08-01 · **Letzter Release:** v0.5.1 (live, APK + latest.json verifiziert; enthält den Anthropic-`stream`-Fix) · **Repo:** `Labushuya/overlai` (public) · **Lokal:** `C:\Code\claude\apps\overlai`
+**Stand:** 2026-08-01 · **Letzter Release:** v0.6.0 (live, APK + latest.json verifiziert; enthält die Overlay-Bubble mit Chat, M3.1+M3.2) · **Repo:** `Labushuya/overlai` (public) · **Lokal:** `C:\Code\claude\apps\overlai`
 
 Dieses Dokument ist der Übergabepunkt zwischen Sessions. Es beschreibt den **aktuellen Stand**, die **gelösten und offenen Probleme** und die **Roadmap**. Nach einer Kontextbereinigung hier ansetzen.
 
@@ -59,11 +59,10 @@ Architektur: `feature-*` hängen nur an `core-*`, nie aneinander; Wiring/DI nur 
 - Suchfeld in langen Modelllisten (der alte Katalog hatte Suche; im neuen Hub bewusst weggelassen — bei Bedarf nachrüsten).
 - Dependabot-PRs abarbeiten (Major-Bumps einzeln + CI prüfen).
 
-**Großer nächster Meilenstein — M3: Overlay-Bubble** (`SYSTEM_ALERT_WINDOW`):
-- **M3.1 + M3.2: FERTIG in PR #24 (Branch `feat/overlay-bubble-skeleton`, CI grün inkl. `assembleDebug`; Draft, noch nicht gemergt, Gerätetest offen).** Neues Modul `:feature:feature-overlay`:
+**M3: Overlay-Bubble** (`SYSTEM_ALERT_WINDOW`) — **RELEASED in v0.6.0 (PR #24 + #25 gemergt, live, verifiziert).** Modul `:feature:feature-overlay`:
   - **M3.1 Plattform-Mechanik:** `OverlayService` (Foreground, `foregroundServiceType=specialUse`, NotificationChannel, `START_NOT_STICKY`, `canDrawOverlays`-Guard), `OverlayWindowController` (Bubble + Panel als `TYPE_APPLICATION_OVERLAY`, Drag/Tap per Touch-Slop), `OverlayLifecycleOwner` (ViewTree-Owner für ComposeView ohne Activity, siehe Memory), Permission-Hub-Item + Toggle (`SettingsStore.overlayEnabled` + `OverlaySettingsScreen`, in `:app` verdrahtet).
   - **M3.2 Chat im Panel:** `OverlayDependencies` (Hilt-`@EntryPoint`) liefert die `ConversationEngine` in den Service; `OverlayChatState` (State-Holder, kein ViewModel, vom Service gehalten → überdauert Panel-Auf/Zu) hält die `SnapshotStateList<UiMessage>` und streamt `engine.stream()`; `OverlayPanel` = echter Mini-Chat (Verlauf + Eingabe + Streaming). Panel-LayoutParams jetzt fokussierbar (Texteingabe), `WATCH_OUTSIDE_TOUCH` schließt.
-- **Bubble ist damit funktional vollständig.** Offen: (1) **Gerätetest**, (2) nach OK **v0.5.2 releasen** (dann kommt sie per In-App-Updater). Release erst nach Nutzer-Freigabe.
+- **OFFEN: Gerätetest der Bubble in v0.6.0** (via In-App-Updater installierbar). Prüfen: Overlay-Permission-Flow, Bubble erscheint/draggt/tippt über Fremd-Apps, Panel-Chat streamt, Toggle aus → alles weg. Anmerkung: CHANGELOG v0.6.0 sagt „Skelett (M3)" (Titel des Squash-Commits), enthält aber auch M3.2 (Chat) — nur kosmetisch.
 - Danach M4 (AccessibilityService/MediaProjection Screen-Read), M5 ist erledigt (Anthropic-Adapter existiert), M6 (Web-Search-Router + Transcription).
 
 ---
