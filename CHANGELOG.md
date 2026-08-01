@@ -6,6 +6,13 @@ Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1
 die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 Dieser Changelog wird ab dem ersten Release von `release-please` gepflegt.
 
+## [0.6.0](https://github.com/Labushuya/overlai/compare/v0.5.1...v0.6.0) (2026-08-01)
+
+
+### Features
+
+* **overlay:** Overlay-Bubble-Skelett (M3) ([#24](https://github.com/Labushuya/overlai/issues/24)) ([23b6994](https://github.com/Labushuya/overlai/commit/23b699417437f2de1f0779ae305b8298ad6749eb))
+
 ## [0.5.1](https://github.com/Labushuya/overlai/compare/v0.5.0...v0.5.1) (2026-08-01)
 
 
