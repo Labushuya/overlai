@@ -13,17 +13,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.navArgument
 import de.overlai.core.ui.util.OnResume
 import de.overlai.feature.chat.ChatScreen
 import de.overlai.feature.chat.ChatViewModel
-import de.overlai.feature.onboarding.ModelCatalogScreen
-import de.overlai.feature.onboarding.ModelCatalogViewModel
-import de.overlai.feature.onboarding.OnboardingScreen
-import de.overlai.feature.onboarding.OnboardingViewModel
+import de.overlai.feature.onboarding.ProviderHubScreen
+import de.overlai.feature.onboarding.ProviderHubViewModel
 import de.overlai.feature.permissions.PermissionChecks
 import de.overlai.feature.permissions.PermissionHubScreen
 import de.overlai.feature.permissions.PermissionHubState
@@ -67,34 +63,17 @@ fun AppNavHost(
 
         composable(SettingsRoutes.PROVIDER) {
             val vm =
-                viewModel<OnboardingViewModel>(
-                    factory = simpleFactory { OnboardingViewModel(deps.keyVault, deps.settingsStore) },
-                )
-            OnboardingScreen(
-                viewModel = vm,
-                onDone = { navController.popBackStack() },
-                onChooseModel = { providerId -> navController.navigate(SettingsRoutes.models(providerId)) },
-            )
-        }
-
-        composable(
-            SettingsRoutes.MODELS,
-            arguments = listOf(navArgument("providerId") { type = NavType.StringType }),
-        ) { entry ->
-            val providerId = entry.arguments?.getString("providerId").orEmpty()
-            val vm =
-                viewModel<ModelCatalogViewModel>(
+                viewModel<ProviderHubViewModel>(
                     factory =
                         simpleFactory {
-                            ModelCatalogViewModel(
-                                providerId = providerId,
-                                catalog = deps.modelCatalog,
+                            ProviderHubViewModel(
                                 keyVault = deps.keyVault,
                                 settingsStore = deps.settingsStore,
+                                catalog = deps.modelCatalog,
                             )
                         },
                 )
-            ModelCatalogScreen(viewModel = vm, onBack = { navController.popBackStack() })
+            ProviderHubScreen(viewModel = vm, onBack = { navController.popBackStack() })
         }
 
         composable(SettingsRoutes.PERMISSIONS) {

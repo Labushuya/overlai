@@ -73,6 +73,15 @@ Dieser Changelog wird ab dem ersten Release von `release-please` gepflegt.
   sha256-Verifikation vor Installation, `PackageInstaller`-Session.
 
 ### Changed
+- **Provider-/Modell-UI komplett überarbeitet (ein Akkordeon-Screen).** Statt einer
+  flachen Radio-Liste + separatem Key-Block + eigenem Modell-Screen gibt es jetzt
+  **eine aufklappbare Karte pro Provider** (genau eine offen). Aufgeklappt zeigt sie:
+  Key-Verwaltung (bei gesetztem Key **maskiert `••••••••1234`** + „Ändern"/„Löschen",
+  sonst Eingabe + „Speichern"), Capability-Badges (Chat/Bild/Websuche/…) und den
+  **live geladenen Modell-Katalog** (lazy beim Aufklappen, mit Modell-ID + Kontext­fenster
+  + „Free"-Marker). Ein **Modell-Tap** setzt Modell **und** Provider app-weit aktiv.
+  Einheitlicher `KeyStatusBadge` (● Aktiv / ✓ Key / Kein Key) statt vier verschiedener
+  Status-Darstellungen. Ersetzt `OnboardingScreen` + `ModelCatalogScreen`.
 - **Release-APK baut jetzt automatisch nach Release-Please.** Bisher triggerte der
   von Release-Please (GITHUB_TOKEN) erzeugte Tag den APK-Build nicht (GitHub-Anti-
   Rekursion) → die APK musste per manuellem Tag-Repush nachgebaut werden. `release.yml`
