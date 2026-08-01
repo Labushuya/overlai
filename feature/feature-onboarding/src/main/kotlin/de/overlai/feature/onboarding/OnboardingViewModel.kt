@@ -6,9 +6,14 @@ import de.overlai.core.data.SettingsStore
 import de.overlai.llm.ProviderConfig
 import de.overlai.llm.providers.ProviderRegistry
 import de.overlai.security.KeyVault
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 // CHANGE-MARKER v0.1.0: Onboarding/BYOK (siehe CHANGELOG.md)
@@ -17,8 +22,13 @@ import kotlinx.coroutines.launch
 data class OnboardingUiState(
     val providers: List<ProviderConfig> = ProviderRegistry.all,
     val selectedProviderId: String = ProviderRegistry.OPENAI.id,
+    // App-weit aktiver Provider (aus dem Store) — kann sich von der lokalen
+    // Auswahl unterscheiden, solange kein Key gespeichert wurde.
+    val activeProviderId: String = ProviderRegistry.OPENAI.id,
     val apiKeyInput: String = "",
     val keyPresentFor: Set<String> = emptySet(),
+    // Aktuell gewähltes Modell des selektierten Providers (null = Provider-Default).
+    val activeModelId: String? = null,
     val savedMessage: String? = null,
 ) {
     val selectedProvider: ProviderConfig
@@ -38,6 +48,7 @@ data class OnboardingUiState(
             }
 }
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class OnboardingViewModel(
     private val keyVault: KeyVault,
     private val settingsStore: SettingsStore,
@@ -46,7 +57,23 @@ class OnboardingViewModel(
     val state: StateFlow<OnboardingUiState> = _state.asStateFlow()
 
     init {
-        refreshKeyPresence()
+        // Startauswahl = app-weit aktiver Provider (nicht hart OpenAI), damit der
+        // Screen den echten Zustand spiegelt.
+        viewModelScope.launch {
+            val active = settingsStore.activeProviderId.first()
+            _state.value = _state.value.copy(selectedProviderId = active, activeProviderId = active)
+            refreshKeyPresence()
+        }
+        // Aktives Modell REAKTIV am selektierten Provider beobachten — sonst zeigt
+        // der Screen nach Rückkehr aus dem Modell-Katalog einen veralteten Wert
+        // (einmaliges first() nach Navigation ist die Falle).
+        viewModelScope.launch {
+            _state
+                .map { it.selectedProviderId }
+                .distinctUntilChanged()
+                .flatMapLatest { settingsStore.activeModelId(it) }
+                .collect { model -> _state.value = _state.value.copy(activeModelId = model) }
+        }
     }
 
     fun onSelectProvider(providerId: String) {
@@ -66,7 +93,12 @@ class OnboardingViewModel(
             // Den soeben eingerichteten Provider auch app-weit aktiv setzen,
             // damit der Chat ihn direkt nutzt.
             settingsStore.setActiveProvider(id)
-            _state.value = _state.value.copy(apiKeyInput = "", savedMessage = "Key gespeichert & als aktiv gesetzt.")
+            _state.value =
+                _state.value.copy(
+                    apiKeyInput = "",
+                    activeProviderId = id,
+                    savedMessage = "Key gespeichert & als aktiv gesetzt.",
+                )
             refreshKeyPresence()
         }
     }

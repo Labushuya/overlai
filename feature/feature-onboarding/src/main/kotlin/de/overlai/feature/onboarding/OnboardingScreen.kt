@@ -66,6 +66,7 @@ fun OnboardingScreen(
             ProviderList(
                 providers = state.providers,
                 selectedId = state.selectedProviderId,
+                activeId = state.activeProviderId,
                 keyPresentFor = state.keyPresentFor,
                 onSelect = viewModel::onSelectProvider,
             )
@@ -81,6 +82,11 @@ fun OnboardingScreen(
 
             // Modell-Katalog nur anbieten, wenn für den gewählten Provider ein Key da ist.
             if (state.selectedProviderId in state.keyPresentFor) {
+                Text(
+                    "Aktives Modell: ${state.activeModelId ?: "Standard (${state.selectedProvider.defaultModel})"}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 TextButton(
                     onClick = { onChooseModel(state.selectedProviderId) },
                     modifier = Modifier.fillMaxWidth(),
@@ -96,11 +102,12 @@ fun OnboardingScreen(
     }
 }
 
-// Provider-Auswahlliste (Radio + "✓ Key"-Marker bei hinterlegtem Key).
+// Provider-Auswahlliste (Radio + "✓ Key"-Marker + "● Aktiv" für den app-weit aktiven).
 @Composable
 private fun ProviderList(
     providers: List<de.overlai.llm.ProviderConfig>,
     selectedId: String,
+    activeId: String,
     keyPresentFor: Set<String>,
     onSelect: (String) -> Unit,
 ) {
@@ -120,6 +127,14 @@ private fun ProviderList(
                 onClick = { onSelect(provider.id) },
             )
             Text(provider.displayName, modifier = Modifier.weight(1f))
+            if (provider.id == activeId) {
+                Text(
+                    "● Aktiv",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(end = 8.dp),
+                )
+            }
             if (provider.id in keyPresentFor) {
                 Text("✓ Key", color = MaterialTheme.colorScheme.primary)
             }
