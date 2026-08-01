@@ -58,5 +58,8 @@ internal data class OpenAiErrorEnvelope(
 internal data class OpenAiError(
     val message: String? = null,
     val type: String? = null,
-    val code: String? = null,
+    // code kann String ("rate_limit_exceeded") ODER Zahl (429) sein — je nach Provider.
+    // Als JsonElement, damit die Deserialisierung des ganzen Chunks nicht kippt (sonst
+    // wird der In-Stream-Fehler verschluckt -> irreführende leere Antwort/204).
+    val code: JsonElement? = null,
 )

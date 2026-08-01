@@ -9,6 +9,8 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.MediaType.Companion.toMediaType
@@ -170,21 +172,38 @@ internal class OpenAiCompatTransport(
     // LlmError. Kein HTTP-Status hier — Klassifikation über code/message.
     private fun mapStreamError(error: OpenAiError): LlmError {
         val msg = error.message?.ifBlank { null } ?: "Provider-Fehler im Stream"
-        val code = error.code ?: error.type
+        // code kann String ("rate_limit_exceeded") ODER Zahl (429) sein.
+        val code = (error.code as? JsonPrimitive)?.contentOrNull ?: error.type
         return when {
-            code == "insufficient_quota" || msg.contains("quota", ignoreCase = true) ->
-                LlmError.InsufficientQuota("Kein Guthaben/Kontingent. ($msg)")
-            code == "rate_limit_exceeded" ||
-                msg.contains("rate", ignoreCase = true) ||
-                msg.contains("limit", ignoreCase = true) ->
+            isQuota(code, msg) -> LlmError.InsufficientQuota("Kein Guthaben/Kontingent. ($msg)")
+            isRateLimited(code, msg) ->
                 LlmError.RateLimited(
                     "Limit erreicht — kurz warten, eigenen Key hinterlegen oder anderes Modell wählen. ($msg)",
                 )
-            code == "invalid_api_key" || msg.contains("api key", ignoreCase = true) ->
-                LlmError.Unauthorized(msg)
+            isUnauthorized(code, msg) -> LlmError.Unauthorized(msg)
+            // OpenRouter: viele :free-Slugs sind abgeschaltet ("unavailable for free").
+            code == "404" || msg.contains("unavailable for free", ignoreCase = true) ->
+                LlmError.Api(STREAM_ERROR_CODE, "Modell nicht (mehr) verfügbar: $msg")
             else -> LlmError.Api(STREAM_ERROR_CODE, msg)
         }
     }
+
+    private fun isQuota(
+        code: String?,
+        msg: String,
+    ): Boolean = code == "insufficient_quota" || msg.contains("quota", ignoreCase = true)
+
+    private fun isRateLimited(
+        code: String?,
+        msg: String,
+    ): Boolean =
+        code == "rate_limit_exceeded" || code == "429" ||
+            msg.contains("rate", ignoreCase = true) || msg.contains("limit", ignoreCase = true)
+
+    private fun isUnauthorized(
+        code: String?,
+        msg: String,
+    ): Boolean = code == "invalid_api_key" || code == "401" || msg.contains("api key", ignoreCase = true)
 
     private fun mapHttpError(response: Response): LlmError = HttpErrorMapper.map(response, json)
 
