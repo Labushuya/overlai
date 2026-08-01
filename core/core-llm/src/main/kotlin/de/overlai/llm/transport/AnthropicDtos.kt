@@ -1,5 +1,6 @@
 package de.overlai.llm.transport
 
+import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
@@ -16,7 +17,11 @@ internal data class AnthropicRequest(
     @SerialName("max_tokens") val maxTokens: Int,
     val messages: List<AnthropicMessage>,
     val system: String? = null,
-    val stream: Boolean = true,
+    // MUSS im Body landen — identischer Fallstrick wie bei OpenAiChatRequest.stream:
+    // encodeDefaults=false (defaultJson) würde stream=true (== Default) sonst weglassen
+    // -> Anthropic antwortet non-streaming (ein JSON-Objekt statt SSE) -> unser
+    // SSE-Reader sieht kein content_block_delta -> falscher "leere Antwort"-Fehler.
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS) val stream: Boolean = true,
 )
 
 @Serializable

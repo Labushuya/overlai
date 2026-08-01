@@ -92,6 +92,10 @@ class AnthropicProviderTest {
             val body = recorded.body.readUtf8()
             assertThat(body).contains("\"system\":\"Du bist knapp.\"")
             assertThat(body).contains("\"max_tokens\":512")
+            // Root-Cause-Regression (wie OpenAiCompat): stream:true MUSS im Body sein.
+            // encodeDefaults=false würde den Default sonst weglassen -> Anthropic
+            // antwortet non-streaming -> leerer SSE-Reader -> falsche "leere Antwort".
+            assertThat(body).contains("\"stream\":true")
             // temperature/top_p dürfen NICHT im Body sein (400 auf neuen Modellen).
             assertThat(body).doesNotContain("temperature")
         }
