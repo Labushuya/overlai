@@ -45,6 +45,14 @@ Dieser Changelog wird ab dem ersten Release von `release-please` gepflegt.
   (`type:"error"`, z.B. `overloaded_error`).
 - **OpenRouter:** `HTTP-Referer`- und `X-Title`-Header werden mitgeschickt (von
   OpenRouter empfohlen; ohne sie werden v.a. kostenlose Modelle gedrosselt).
+- **In-App-Updater: „Installieren" reagierte nicht.** `PackageInstaller.commit()`
+  zeigt bei einer Sideload-App **nicht** direkt den Install-Dialog, sondern sendet
+  zuerst `STATUS_PENDING_USER_ACTION` als Broadcast mit dem Dialog-Intent in
+  `EXTRA_INTENT`. Es fehlte der Empfänger dafür → der Systemdialog wurde nie
+  gestartet, der Button blieb wirkungslos. Jetzt registriert `PackageInstallerSession`
+  einen `BroadcastReceiver` (`RECEIVER_NOT_EXPORTED`), startet den Bestätigungs-Intent
+  (`FLAG_ACTIVITY_NEW_TASK`) und meldet Erfolg/Fehler über einen `StateFlow` zurück;
+  die Updater-UI zeigt jetzt „Installation läuft …" und „Update installiert".
 
 ### Tested
 - JVM-Unit-Tests: OpenAI-SSE-Transport (MockWebServer), CapabilityRouter,

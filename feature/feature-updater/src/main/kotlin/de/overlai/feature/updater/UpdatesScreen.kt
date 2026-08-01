@@ -55,61 +55,85 @@ fun UpdatesScreen(
             modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            when (val s = state) {
-                is UpdateViewModel.UiState.Idle -> {
-                    VersionRow(s.current)
-                    Button(onClick = viewModel::check, modifier = Modifier.fillMaxWidth()) {
-                        Text("Auf Updates prüfen")
-                    }
-                }
-                UpdateViewModel.UiState.Checking -> Loading("Prüfe auf Updates …")
-                is UpdateViewModel.UiState.UpToDate -> {
-                    VersionRow(s.current)
-                    Text("Du hast die aktuelle Version.", color = MaterialTheme.colorScheme.primary)
-                    Button(onClick = viewModel::check, modifier = Modifier.fillMaxWidth()) {
-                        Text("Erneut prüfen")
-                    }
-                }
-                is UpdateViewModel.UiState.Available -> {
-                    Text("Update verfügbar: ${s.manifest.versionName}", fontWeight = FontWeight.Bold)
-                    s.manifest.releaseNotes?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
-                    InstallHint()
-                    Button(
-                        onClick = { viewModel.download(s.manifest) },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text("Herunterladen") }
-                }
-                UpdateViewModel.UiState.Downloading -> Loading("Lade herunter & prüfe Integrität …")
-                is UpdateViewModel.UiState.Ready -> {
-                    Text("Bereit zur Installation: ${s.versionName}", fontWeight = FontWeight.Bold)
-                    InstallHint()
-                    Button(onClick = { viewModel.install(s.apk) }, modifier = Modifier.fillMaxWidth()) {
-                        Text("Installieren")
-                    }
-                }
-                is UpdateViewModel.UiState.NeedsInstallPermission -> {
-                    Text(
-                        "Zum Installieren muss „Unbekannte Apps installieren“ für OverlAI erlaubt sein.",
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                    Button(onClick = onFixInstallPermission, modifier = Modifier.fillMaxWidth()) {
-                        Text("Berechtigung erteilen")
-                    }
-                    Button(onClick = { viewModel.install(s.apk) }, modifier = Modifier.fillMaxWidth()) {
-                        Text("Erneut versuchen")
-                    }
-                }
-                is UpdateViewModel.UiState.Error -> {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
-                    ) {
-                        Text(s.message, modifier = Modifier.padding(12.dp))
-                    }
-                    Button(onClick = viewModel::check, modifier = Modifier.fillMaxWidth()) {
-                        Text("Erneut prüfen")
-                    }
-                }
+            UpdatesContent(
+                state = state,
+                onCheck = viewModel::check,
+                onDownload = viewModel::download,
+                onInstall = viewModel::install,
+                onFixInstallPermission = onFixInstallPermission,
+            )
+        }
+    }
+}
+
+@Composable
+private fun UpdatesContent(
+    state: UpdateViewModel.UiState,
+    onCheck: () -> Unit,
+    onDownload: (LatestManifest) -> Unit,
+    onInstall: (java.io.File) -> Unit,
+    onFixInstallPermission: () -> Unit,
+) {
+    when (val s = state) {
+        is UpdateViewModel.UiState.Idle -> {
+            VersionRow(s.current)
+            Button(onClick = onCheck, modifier = Modifier.fillMaxWidth()) {
+                Text("Auf Updates prüfen")
+            }
+        }
+        UpdateViewModel.UiState.Checking -> Loading("Prüfe auf Updates …")
+        is UpdateViewModel.UiState.UpToDate -> {
+            VersionRow(s.current)
+            Text("Du hast die aktuelle Version.", color = MaterialTheme.colorScheme.primary)
+            Button(onClick = onCheck, modifier = Modifier.fillMaxWidth()) {
+                Text("Erneut prüfen")
+            }
+        }
+        is UpdateViewModel.UiState.Available -> {
+            Text("Update verfügbar: ${s.manifest.versionName}", fontWeight = FontWeight.Bold)
+            s.manifest.releaseNotes?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+            InstallHint()
+            Button(
+                onClick = { onDownload(s.manifest) },
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Herunterladen") }
+        }
+        UpdateViewModel.UiState.Downloading -> Loading("Lade herunter & prüfe Integrität …")
+        UpdateViewModel.UiState.Installing -> Loading("Installation läuft — bestätige den Systemdialog …")
+        UpdateViewModel.UiState.Installed -> {
+            Text("Update installiert.", color = MaterialTheme.colorScheme.primary)
+            Button(onClick = onCheck, modifier = Modifier.fillMaxWidth()) {
+                Text("Fertig")
+            }
+        }
+        is UpdateViewModel.UiState.Ready -> {
+            Text("Bereit zur Installation: ${s.versionName}", fontWeight = FontWeight.Bold)
+            InstallHint()
+            Button(onClick = { onInstall(s.apk) }, modifier = Modifier.fillMaxWidth()) {
+                Text("Installieren")
+            }
+        }
+        is UpdateViewModel.UiState.NeedsInstallPermission -> {
+            Text(
+                "Zum Installieren muss „Unbekannte Apps installieren“ für OverlAI erlaubt sein.",
+                color = MaterialTheme.colorScheme.error,
+            )
+            Button(onClick = onFixInstallPermission, modifier = Modifier.fillMaxWidth()) {
+                Text("Berechtigung erteilen")
+            }
+            Button(onClick = { onInstall(s.apk) }, modifier = Modifier.fillMaxWidth()) {
+                Text("Erneut versuchen")
+            }
+        }
+        is UpdateViewModel.UiState.Error -> {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+            ) {
+                Text(s.message, modifier = Modifier.padding(12.dp))
+            }
+            Button(onClick = onCheck, modifier = Modifier.fillMaxWidth()) {
+                Text("Erneut prüfen")
             }
         }
     }
