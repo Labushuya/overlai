@@ -45,11 +45,13 @@ class HttpModelCatalog(
         }
     }
 
-    // Nur bestätigte Live-Endpoints. Grok/Kimi/Gemini -> null -> StaticModels
-    // (vor Ship verifizieren, dann hier ergänzen).
+    // Live-Endpoints (OpenAI-kompatibel). Gemini nutzt den Shim -> baseUrl endet
+    // schon auf /v1beta/openai, daher nur "/models". Fallback (StaticModels) greift
+    // weiterhin bei Netz-/Auth-Fehlern über list()/listOrThrow().
     private fun modelsPath(id: String): String? =
         when (id) {
-            "openai", "anthropic", "openrouter", "deepseek" -> "/v1/models"
+            "openai", "anthropic", "openrouter", "deepseek", "kimi", "grok" -> "/v1/models"
+            "gemini" -> "/models"
             else -> null
         }
 

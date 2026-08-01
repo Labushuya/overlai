@@ -74,7 +74,7 @@ object ProviderRegistry {
             authScheme = AuthScheme.Bearer,
             capabilities =
                 setOf(Capability.CHAT, Capability.VISION, Capability.WEB_SEARCH_NATIVE, Capability.TOOL_USE),
-            defaultModel = "grok-2-latest",
+            defaultModel = "grok-4.5",
         )
 
     val KIMI =
@@ -84,7 +84,7 @@ object ProviderRegistry {
             baseUrl = "https://api.moonshot.ai",
             authScheme = AuthScheme.Bearer,
             capabilities = setOf(Capability.CHAT, Capability.VISION, Capability.TOOL_USE),
-            defaultModel = "moonshot-v1-8k",
+            defaultModel = "kimi-k2.6",
         )
 
     val OPENROUTER =
@@ -116,7 +116,7 @@ object ProviderRegistry {
             authScheme = AuthScheme.Bearer,
             capabilities =
                 setOf(Capability.CHAT, Capability.VISION, Capability.WEB_SEARCH_NATIVE, Capability.TOOL_USE),
-            defaultModel = "gemini-2.0-flash",
+            defaultModel = "gemini-2.5-flash",
         )
 
     // Reihenfolge = Anzeige-Reihenfolge im Provider-Picker. OpenAI zuerst (MVP).

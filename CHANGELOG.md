@@ -59,6 +59,13 @@ Dieser Changelog wird ab dem ersten Release von `release-please` gepflegt.
   Rückkehr aus dem Modell-Katalog).
 
 ### Fixed
+- **„Model not found" bei Kimi/Grok/Gemini (auch bei bezahltem Konto).** Diese
+  Provider nutzten hartkodierte, veraltete Modellnamen (`moonshot-v1-8k`,
+  `grok-2-latest`, `gemini-2.0-flash` …), die die Provider nicht mehr kennen →
+  jede Anfrage scheiterte trotz gültigem Key/Kontingent. Jetzt wird der Katalog
+  **live** vom Provider geladen (`/v1/models` bzw. Gemini-Shim `/models`), mit
+  Chat-Filter je Provider und `models/`-Präfix-Strip für Gemini. Die Fallback-IDs
+  sind auf aktuelle Modelle aktualisiert (`kimi-k2.6`, `grok-4.5`, `gemini-2.5-flash`).
 - **Leere Chat-Bubble bei In-Stream-Fehlern:** Manche OpenAI-kompatible Provider
   (v.a. OpenRouter `:free`) antworten mit HTTP 200 und liefern den Fehler erst als
   `data`-Zeile (`{"error":…}`) im SSE-Stream. Der wurde bisher verschluckt → Stream
