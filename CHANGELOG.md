@@ -6,6 +6,13 @@ Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1
 die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 Dieser Changelog wird ab dem ersten Release von `release-please` gepflegt.
 
+## [0.4.1](https://github.com/Labushuya/overlai/compare/v0.4.0...v0.4.1) (2026-08-01)
+
+
+### Bug Fixes
+
+* **core-llm:** In-Stream-Fehler nicht mehr verschlucken (leere Bubble) ([32a090b](https://github.com/Labushuya/overlai/commit/32a090b722e6442cda5ff36f4ba11d6ba02b7db2))
+
 ## [Unreleased]
 
 ### Added
