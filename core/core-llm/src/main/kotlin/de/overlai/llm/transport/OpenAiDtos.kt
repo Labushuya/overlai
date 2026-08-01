@@ -45,6 +45,11 @@ internal data class OpenAiStreamChoice(
 @Serializable
 internal data class OpenAiDelta(
     val content: String? = null,
+    // Reasoning-Modelle (Kimi k2-thinking, DeepSeek-R1) streamen den Denktext in
+    // einem separaten Feld — Provider benennen es unterschiedlich, beide abdecken.
+    // Ohne das bleibt der Stream für uns "leer" -> falscher 204.
+    @SerialName("reasoning_content") val reasoningContent: String? = null,
+    val reasoning: String? = null,
 )
 
 // --- Fehler-Body ---

@@ -117,9 +117,9 @@ internal class OpenAiCompatTransport(
                         }
                     }
 
-                    // Stream sauber beenden; endet er ohne jeden Content, ist das bei
-                    // OpenRouter-:free-Modellen fast immer ein ausgelasteter/leerer Pool —
-                    // ehrliche Meldung statt leerer Bubble.
+                    // Stream sauber beenden; endet er ganz ohne Content, ehrliche
+                    // NEUTRALE Meldung (Provider + Modell) statt leerer Bubble — kein
+                    // "kostenlos"-Bias (der Fehler trifft auch bezahlte Provider).
                     private fun finishStream(sawContent: Boolean) {
                         if (sawContent) {
                             trySend(ChatDelta(text = "", done = true))
@@ -128,8 +128,9 @@ internal class OpenAiCompatTransport(
                             close(
                                 LlmError.Api(
                                     EMPTY_RESPONSE_CODE,
-                                    "Leere Antwort vom Modell — bei kostenlosen Modellen oft ausgelastet. " +
-                                        "Kurz warten oder ein anderes Modell wählen.",
+                                    "Keine Antwort von ${config.displayName} (Modell ${request.model}). " +
+                                        "Der Stream endete ohne Inhalt — bitte erneut senden oder ein " +
+                                        "anderes Modell wählen.",
                                 ),
                             )
                         }
@@ -160,11 +161,17 @@ internal class OpenAiCompatTransport(
                 .getOrNull() ?: return ChunkResult.Ignore
         chunk.error?.let { err -> return ChunkResult.StreamError(mapStreamError(err)) }
         val choice = chunk.choices.firstOrNull()
-        val text = choice?.delta?.content
+        val delta = choice?.delta
+        val content = delta?.content
+        // Reasoning-Modelle streamen den Denktext in reasoning_content/reasoning
+        // (statt/vor content). Als sichtbaren Text ausgeben, sonst bliebe der Stream
+        // für uns leer -> falscher "leere Antwort"-Fehler.
+        val reasoning = delta?.reasoningContent ?: delta?.reasoning
+        val text = if (!content.isNullOrEmpty()) content else reasoning
         return if (text.isNullOrEmpty()) {
             ChunkResult.Ignore
         } else {
-            ChunkResult.Delta(ChatDelta(text = text, finishReason = choice.finishReason))
+            ChunkResult.Delta(ChatDelta(text = text, finishReason = choice?.finishReason))
         }
     }
 

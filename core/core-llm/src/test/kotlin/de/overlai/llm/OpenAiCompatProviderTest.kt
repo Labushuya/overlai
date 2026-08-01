@@ -209,9 +209,10 @@ class OpenAiCompatProviderTest {
         }
 
     @Test
-    fun `stream with zero content deltas fails instead of empty bubble`() =
+    fun `stream with zero content deltas fails with neutral message (no free bias)`() =
         runTest {
-            // Nur ein role-Delta ohne content, dann DONE -> darf keine leere Bubble geben.
+            // Nur ein role-Delta ohne content, dann DONE -> keine leere Bubble, aber
+            // NEUTRALE Meldung (kein "kostenlos"-Bias, trifft auch bezahlte Provider).
             server.enqueue(
                 MockResponse()
                     .setHeader("Content-Type", "text/event-stream")
@@ -226,7 +227,34 @@ class OpenAiCompatProviderTest {
             } catch (e: Throwable) {
                 caught = e
             }
-            assertThat(caught).isInstanceOf(LlmError::class.java)
+            assertThat(caught).isInstanceOf(LlmError.Api::class.java)
+            val msg = (caught as LlmError.Api).message
+            assertThat(msg).doesNotContain("kostenlos")
+            assertThat(msg).contains("gpt-4o")
+        }
+
+    @Test
+    fun `reasoning_content is surfaced as text (Kimi k2-thinking, DeepSeek-R1)`() =
+        runTest {
+            // Reasoning-Modelle streamen den Text in reasoning_content statt content.
+            // Vor dem Fix -> Stream "leer" -> falscher 204. Jetzt: sichtbarer Text.
+            server.enqueue(
+                MockResponse()
+                    .setHeader("Content-Type", "text/event-stream")
+                    .setBody(
+                        """data: {"choices":[{"delta":{"reasoning_content":"denke... "}}]}""" + "\n\n" +
+                            """data: {"choices":[{"delta":{"content":"Hallo"}}]}""" + "\n\n" +
+                            "data: [DONE]\n\n",
+                    ),
+            )
+            val provider = factory.create(mockConfig())
+            val deltas =
+                provider
+                    .chat(ChatRequest(model = "kimi-k2", messages = listOf(ChatMessage(Role.USER, "hi"))), "sk")
+                    .toList()
+            val text = deltas.filter { !it.done }.joinToString("") { it.text }
+            assertThat(text).isEqualTo("denke... Hallo")
+            assertThat(deltas.last().done).isTrue()
         }
 
     @Test

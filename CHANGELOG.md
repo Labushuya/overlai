@@ -72,6 +72,14 @@ Dieser Changelog wird ab dem ersten Release von `release-please` gepflegt.
   Rückkehr aus dem Modell-Katalog).
 
 ### Fixed
+- **Kimi (und andere Reasoning-Modelle) lieferten „leere"/„ausgelastet"-Meldung
+  trotz gültigem, bezahltem Konto.** Reasoning-Modelle (Kimi k2-thinking,
+  DeepSeek-R1 …) streamen den Text im Feld `reasoning_content`/`reasoning` statt
+  `content` — der Transport las nur `content` → Stream schien leer → falsche
+  „bei kostenlosen Modellen oft ausgelastet"-Meldung (die ohnehin fälschlich
+  free-spezifisch getextet war, auch bei bezahlten Providern). Jetzt wird
+  `reasoning_content`/`reasoning` als sichtbarer Text ausgegeben, und die
+  Leer-Meldung ist **neutral** (nennt Provider + Modell, kein „kostenlos"-Bias).
 - **„Model not found" bei Kimi/Grok/Gemini (auch bei bezahltem Konto).** Diese
   Provider nutzten hartkodierte, veraltete Modellnamen (`moonshot-v1-8k`,
   `grok-2-latest`, `gemini-2.0-flash` …), die die Provider nicht mehr kennen →
