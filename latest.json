@@ -3,7 +3,7 @@
   "versionCode": 404,
   "minSdk": 26,
   "apkUrl": "https://github.com/Labushuya/overlai/releases/download/v0.4.4/overlai-v0.4.4.apk",
-  "sha256": "98d4df8cb5306033c787934804d4c9282e14e78d71ba08e25c64c79efa42892a",
+  "sha256": "73c82c57758c3a65335f1d77458b6b7387a1681011eb634cdbcfc5b3da288bef",
   "sizeBytes": 45458999,
   "mandatory": false
 }
