@@ -6,6 +6,14 @@ Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1
 die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 Dieser Changelog wird ab dem ersten Release von `release-please` gepflegt.
 
+## [0.4.2](https://github.com/Labushuya/overlai/compare/v0.4.1...v0.4.2) (2026-08-01)
+
+
+### Bug Fixes
+
+* **updater:** EXTRA_INTENT liegt auf Intent, nicht PackageInstaller ([fc61d82](https://github.com/Labushuya/overlai/commit/fc61d82b6c0d611a4866ac0cb0eea0edd289d324))
+* **updater:** Install-Dialog erscheint jetzt (fehlender Status-Receiver) ([bddafa4](https://github.com/Labushuya/overlai/commit/bddafa42c4a5413bfd755be5160d0f8adb6de25e))
+
 ## [0.4.1](https://github.com/Labushuya/overlai/compare/v0.4.0...v0.4.1) (2026-08-01)
 
 
