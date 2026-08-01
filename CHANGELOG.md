@@ -60,6 +60,11 @@ Dieser Changelog wird ab dem ersten Release von `release-please` gepflegt.
   ist jetzt `JsonElement` (frisst String **und** Zahl); die Meldung ist ehrlich —
   z.B. „Modell nicht (mehr) verfügbar" (viele `:free`-Slugs sind bei OpenRouter
   abgeschaltet) statt „ausgelastet".
+- **Modellkatalog markierte tote `:free`-Slugs als gratis.** Die `free`-Erkennung
+  vertraute dem `:free`-Namenssuffix — OpenRouter hat aber viele davon abgeschaltet
+  (realer Preis > 0). Jetzt zählt **nur der echte Preis** (`pricing.prompt`/`.completion`
+  == 0); fehlt der Preis, gilt das Modell fail-closed als *nicht* gratis. Der
+  „Nur kostenlose"-Filter zeigt damit nur noch wirklich nutzbare Free-Modelle.
 - **In-App-Updater: „Installieren" reagierte nicht.** `PackageInstaller.commit()`
   zeigt bei einer Sideload-App **nicht** direkt den Install-Dialog, sondern sendet
   zuerst `STATUS_PENDING_USER_ACTION` als Broadcast mit dem Dialog-Intent in

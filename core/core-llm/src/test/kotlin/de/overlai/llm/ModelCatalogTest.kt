@@ -70,6 +70,9 @@ class ModelCatalogTest {
                       {"id":"some/zero-priced","name":"Zero",
                        "architecture":{"output_modalities":["text"]},
                        "pricing":{"prompt":"0.00000000","completion":"0.00000000"}},
+                      {"id":"deepseek/deepseek-r1:free","name":"DeepSeek R1 (free-Slug, aber paid)",
+                       "architecture":{"output_modalities":["text"]},
+                       "pricing":{"prompt":"0.0000004","completion":"0.0000008"}},
                       {"id":"an/image-model","name":"Img",
                        "architecture":{"output_modalities":["image"]},
                        "pricing":{"prompt":"0","completion":"0"}}
@@ -80,10 +83,12 @@ class ModelCatalogTest {
             val byId = models.associateBy { it.id }
             // Bild-Modell (nur image-Output) ausgeschlossen.
             assertThat(byId).doesNotContainKey("an/image-model")
-            // :free -> free
+            // :free-Slug MIT Preis 0 -> free
             assertThat(byId["deepseek/deepseek-chat-v3:free"]?.free).isTrue()
             // numerisch 0.00000000 -> free
             assertThat(byId["some/zero-priced"]?.free).isTrue()
+            // :free-Slug, aber realer Preis > 0 (OpenRouter-Abschaltung) -> NICHT free
+            assertThat(byId["deepseek/deepseek-r1:free"]?.free).isFalse()
             // bezahlt -> nicht free
             assertThat(byId["openai/gpt-4o"]?.free).isFalse()
             // context durchgereicht
