@@ -11,17 +11,33 @@ import android.os.Build
 import android.os.IBinder
 import android.provider.Settings
 import androidx.core.app.NotificationCompat
+import dagger.hilt.android.EntryPointAccessors
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 
 // CHANGE-MARKER v0.5.2: Overlay-Bubble (M3, siehe CHANGELOG.md)
 // Foreground-Service, der die Overlay-Bubble trägt. specialUse (nicht dataSync — dessen
 // 6h-Cap würde ein dauerhaft verfügbares Overlay beenden). Der Service besitzt den
 // OverlayWindowController; ohne SYSTEM_ALERT_WINDOW beendet er sich sofort selbst.
 //
-// Kein Hilt hier: der Service braucht (im Skelett) keine app-weiten Singletons. Wenn in
-// M3.2 der Chat einzieht, holt er ConversationEngine über einen Hilt-@EntryPoint
-// (EntryPointAccessors.fromApplication), analog feature-share/ShareDependencies.
+// Der Chat im Panel läuft über die app-weite ConversationEngine, die der Service via
+// Hilt-@EntryPoint (OverlayDependencies) holt — der Service selbst ist kein
+// @AndroidEntryPoint, analog feature-share/ShareDependencies.
 class OverlayService : Service() {
     private var controller: OverlayWindowController? = null
+
+    // Service-eigener Scope für die Chat-Streams (Main-Dispatcher: die Engine-Collector
+    // aktualisieren Compose-State). In onDestroy gecancelt.
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val chatState: OverlayChatState by lazy {
+        val engine =
+            EntryPointAccessors
+                .fromApplication(applicationContext, OverlayDependencies::class.java)
+                .conversationEngine()
+        OverlayChatState(engine, serviceScope)
+    }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -50,7 +66,7 @@ class OverlayService : Service() {
 
     private fun startBubble() {
         startForegroundNotification()
-        val ctrl = controller ?: OverlayWindowController(this).also { controller = it }
+        val ctrl = controller ?: OverlayWindowController(this, chatState).also { controller = it }
         ctrl.showBubble()
     }
 
@@ -90,6 +106,7 @@ class OverlayService : Service() {
     override fun onDestroy() {
         controller?.removeAll()
         controller = null
+        serviceScope.cancel()
         super.onDestroy()
     }
 

@@ -8,6 +8,9 @@ plugins {
 dependencies {
     implementation(project(":core:core-ui"))
     implementation(project(":core:core-common"))
+    // M3.2: Chat im Panel — Engine + Domain-Typen (ChatMessage/Role) wiederverwenden.
+    implementation(project(":core:core-conversation"))
+    implementation(project(":core:core-llm"))
     // savedstate: SavedStateRegistryOwner für ComposeView im WindowManager-Overlay
     // (Compose außerhalb einer Activity braucht die ViewTree-Owner explizit).
     implementation(libs.androidx.savedstate)

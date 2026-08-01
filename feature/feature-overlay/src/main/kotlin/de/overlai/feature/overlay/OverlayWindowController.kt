@@ -21,6 +21,7 @@ import kotlin.math.abs
 // doppeltes add/remove (isAttachedToWindow-Prüfung bzw. null-Guards).
 internal class OverlayWindowController(
     private val context: Context,
+    private val chatState: OverlayChatState,
 ) {
     private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
@@ -90,10 +91,10 @@ internal class OverlayWindowController(
                 (context.resources.displayMetrics.widthPixels * 0.86f).toInt(),
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 overlayType,
-                // NOT_TOUCH_MODAL: Tipps außerhalb des Panels gehen an die App durch;
-                // WATCH_OUTSIDE_TOUCH lässt uns einen Außentipp erkennen und schließen.
-                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                    WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
+                // Das Panel MUSS fokussierbar sein (Texteingabe/IME) — daher KEIN
+                // NOT_FOCUSABLE. WATCH_OUTSIDE_TOUCH lässt uns einen Tipp außerhalb
+                // erkennen und das Panel schließen (Bubble bleibt).
+                WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
                 PixelFormat.TRANSLUCENT,
             ).apply {
                 gravity = Gravity.TOP or Gravity.START
@@ -104,7 +105,7 @@ internal class OverlayWindowController(
         val owner = OverlayLifecycleOwner()
         val view =
             ComposeView(context).apply {
-                setContent { OverlayPanel(onClose = ::removePanel) }
+                setContent { OverlayPanel(chat = chatState, onClose = ::removePanel) }
             }
         owner.attachTo(view)
         // Außentipp schließt das Panel (Bubble bleibt).
@@ -120,6 +121,8 @@ internal class OverlayWindowController(
         panelOwner = owner
         panelView = view
         windowManager.addView(view, params)
+        // Einmalig prüfen, ob ein Key hinterlegt ist (blendet sonst einen Hinweis ein).
+        chatState.checkKey()
     }
 
     private fun removePanel() {
