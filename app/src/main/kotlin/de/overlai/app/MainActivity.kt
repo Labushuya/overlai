@@ -30,6 +30,8 @@ import dagger.hilt.android.AndroidEntryPoint
 import de.overlai.common.ThemePreferences
 import de.overlai.core.data.SettingsStore
 import de.overlai.core.ui.theme.OverlAiTheme
+import de.overlai.feature.overlay.OverlayService
+import de.overlai.feature.permissions.PermissionChecks
 import de.overlai.feature.settings.SettingsRoutes
 import de.overlai.feature.updater.ApkDownloader
 import de.overlai.feature.updater.PackageInstallerSession
@@ -38,6 +40,7 @@ import de.overlai.llm.HttpModelCatalog
 import de.overlai.llm.ProviderFactory
 import de.overlai.security.KeyVault
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -72,6 +75,15 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.CREATED) {
                 settingsStore.themePreferences.collect { themeState.value = it }
+            }
+        }
+
+        // Overlay-Bubble nach App-Start wiederherstellen: war sie zuletzt an und ist die
+        // Berechtigung (noch) erteilt, den Service neu starten (Service ist START_NOT_STICKY,
+        // überlebt einen Prozess-Kill also nicht von selbst).
+        lifecycleScope.launch {
+            if (settingsStore.overlayEnabled.first() && PermissionChecks.canDrawOverlays(this@MainActivity)) {
+                OverlayService.start(this@MainActivity)
             }
         }
 
