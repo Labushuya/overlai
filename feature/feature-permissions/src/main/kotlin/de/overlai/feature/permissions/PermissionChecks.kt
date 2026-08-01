@@ -32,4 +32,14 @@ object PermissionChecks {
         androidx.core.app.NotificationManagerCompat
             .from(context)
             .areNotificationsEnabled()
+
+    // "Über anderen Apps anzeigen" (SYSTEM_ALERT_WINDOW) — Voraussetzung der Overlay-Bubble.
+    fun canDrawOverlays(context: Context): Boolean = Settings.canDrawOverlays(context)
+
+    // Deep-Link auf die Overlay-Berechtigungsseite dieser App.
+    fun overlayPermissionIntent(context: Context): Intent =
+        Intent(
+            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+            Uri.parse("package:${context.packageName}"),
+        )
 }
