@@ -6,6 +6,13 @@ Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1
 die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 Dieser Changelog wird ab dem ersten Release von `release-please` gepflegt.
 
+## [0.4.5](https://github.com/Labushuya/overlai/compare/v0.4.4...v0.4.5) (2026-08-01)
+
+
+### Bug Fixes
+
+* **core-llm:** reasoning_content lesen (Kimi/R1) + Leer-Meldung neutralisieren ([c26c1cb](https://github.com/Labushuya/overlai/commit/c26c1cb91c919d10744bde8e618f896cafb7e486))
+
 ## [0.4.4](https://github.com/Labushuya/overlai/compare/v0.4.3...v0.4.4) (2026-08-01)
 
 
