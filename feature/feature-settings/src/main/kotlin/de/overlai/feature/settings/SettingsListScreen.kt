@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BubbleChart
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Palette
@@ -59,6 +60,7 @@ fun SettingsListScreen(
             }
 
             settingsRow("Provider & API-Keys", Icons.Filled.Key, SettingsRoutes.PROVIDER, onOpen)
+            settingsRow("Overlay-Bubble", Icons.Filled.BubbleChart, SettingsRoutes.OVERLAY, onOpen)
             settingsRow("Berechtigungen & Status", Icons.Filled.VerifiedUser, SettingsRoutes.PERMISSIONS, onOpen)
             settingsRow("Updates & Version", Icons.Filled.SystemUpdate, SettingsRoutes.UPDATES, onOpen)
             settingsRow("Darstellung", Icons.Filled.Palette, SettingsRoutes.APPEARANCE, onOpen)

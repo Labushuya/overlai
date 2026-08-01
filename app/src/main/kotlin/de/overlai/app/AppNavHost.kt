@@ -27,8 +27,10 @@ import de.overlai.feature.permissions.PermissionItem
 import de.overlai.feature.settings.AboutScreen
 import de.overlai.feature.settings.AppearanceScreen
 import de.overlai.feature.settings.AppearanceViewModel
+import de.overlai.feature.settings.OverlaySettingsScreen
 import de.overlai.feature.settings.SettingsListScreen
 import de.overlai.feature.settings.SettingsRoutes
+import de.overlai.feature.overlay.OverlayService
 import de.overlai.feature.updater.UpdateViewModel
 import de.overlai.feature.updater.UpdatesScreen
 import de.overlai.llm.providers.ProviderRegistry
@@ -114,7 +116,43 @@ fun AppNavHost(
         composable(SettingsRoutes.ABOUT) {
             AboutScreen(versionName = deps.versionName, onBack = { navController.popBackStack() })
         }
+
+        composable(SettingsRoutes.OVERLAY) {
+            OverlayRoute(deps, navController)
+        }
     }
+}
+
+// Overlay-Bubble-Toggle: hält Enabled-Wunsch (SettingsStore) + Live-Permission-Status
+// und steuert den Foreground-Service. Permission-Check + Service-Start liegen hier in
+// :app (das Feature-Modul bleibt UI-only).
+@Composable
+private fun OverlayRoute(
+    deps: AppDependencies,
+    navController: NavHostController,
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var enabled by remember { mutableStateOf(false) }
+    var hasPermission by remember { mutableStateOf(false) }
+    // Nach Rückkehr aus den System-Einstellungen (Permission erteilt) neu einlesen.
+    OnResume {
+        hasPermission = PermissionChecks.canDrawOverlays(context)
+        scope.launch { enabled = deps.settingsStore.overlayEnabled.first() }
+    }
+    OverlaySettingsScreen(
+        enabled = enabled,
+        hasOverlayPermission = hasPermission,
+        onToggle = { wanted ->
+            enabled = wanted
+            scope.launch { deps.settingsStore.setOverlayEnabled(wanted) }
+            if (wanted) OverlayService.start(context) else OverlayService.stop(context)
+        },
+        onRequestPermission = {
+            context.startActivity(PermissionChecks.overlayPermissionIntent(context))
+        },
+        onBack = { navController.popBackStack() },
+    )
 }
 
 // Chat-Route: ViewModel + First-run-Routing ins Provider-Setup.
@@ -212,6 +250,12 @@ private fun PermissionsRoute(
                                 rationale = "Für Update- und Download-Hinweise.",
                                 granted = PermissionChecks.notificationsEnabled(context),
                             ),
+                            PermissionItem(
+                                id = "overlay",
+                                title = "Über anderen Apps anzeigen",
+                                rationale = "Nötig für die Overlay-Bubble, die OverlAI über anderen Apps einblendet.",
+                                granted = PermissionChecks.canDrawOverlays(context),
+                            ),
                         ),
                 )
         }
@@ -222,6 +266,7 @@ private fun PermissionsRoute(
             when (item.id) {
                 "api_key" -> navController.navigate(SettingsRoutes.PROVIDER)
                 "install_packages" -> context.startActivity(PermissionChecks.installUnknownAppsIntent(context))
+                "overlay" -> context.startActivity(PermissionChecks.overlayPermissionIntent(context))
                 else -> context.startActivity(PermissionChecks.appDetailsIntent(context))
             }
         },
