@@ -6,6 +6,13 @@ Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1
 die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 Dieser Changelog wird ab dem ersten Release von `release-please` gepflegt.
 
+## [0.5.0](https://github.com/Labushuya/overlai/compare/v0.4.6...v0.5.0) (2026-08-01)
+
+
+### Features
+
+* **onboarding:** Provider-Hub — ein Akkordeon-Screen für Provider+Keys+Modelle ([7a566ca](https://github.com/Labushuya/overlai/commit/7a566ca4f82530618626fb0eeaa2b6e053dbe2f7))
+
 ## [0.4.6](https://github.com/Labushuya/overlai/compare/v0.4.5...v0.4.6) (2026-08-01)
 
 
