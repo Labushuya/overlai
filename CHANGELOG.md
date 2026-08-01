@@ -79,6 +79,15 @@ Dieser Changelog wird ab dem ersten Release von `release-please` gepflegt.
   Rückkehr aus dem Modell-Katalog).
 
 ### Fixed
+- **ROOT CAUSE: `stream:true` fehlte im Request-Body → jede Chat-Anfrage bei
+  JEDEM Provider schlug als „leere Antwort" (204) fehl (seit v0.1.0).** Das
+  `stream`-Feld hatte den Default `true`, und die JSON-Config ließ Default-Werte
+  weg (`encodeDefaults=false`) → `stream` fiel aus dem Body → der Provider
+  antwortete **non-streaming** (ein JSON-Objekt statt SSE) → unser SSE-Reader fand
+  nie eine `data:`-Zeile → falsche 204-„leerer Stream"-Meldung. Das war die
+  gemeinsame Ursache hinter den vermeintlich provider-spezifischen Leer-Symptomen
+  (OpenRouter `:free`, Kimi …). Fix: `@EncodeDefault(ALWAYS)` erzwingt `stream:true`
+  im Body (die korrekte null-Weglassung von `temperature`/`max_tokens` bleibt).
 - **Kimi (und andere Reasoning-Modelle) lieferten „leere"/„ausgelastet"-Meldung
   trotz gültigem, bezahltem Konto.** Reasoning-Modelle (Kimi k2-thinking,
   DeepSeek-R1 …) streamen den Text im Feld `reasoning_content`/`reasoning` statt

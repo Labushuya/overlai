@@ -87,7 +87,11 @@ class OpenAiCompatProviderTest {
             val recorded = server.takeRequest()
             assertThat(recorded.path).isEqualTo("/v1/chat/completions")
             assertThat(recorded.getHeader("Authorization")).isEqualTo("Bearer sk-secret")
-            assertThat(recorded.body.readUtf8()).contains("\"model\":\"gpt-4o\"")
+            val body = recorded.body.readUtf8()
+            assertThat(body).contains("\"model\":\"gpt-4o\"")
+            // Root-Cause-Regression: stream:true MUSS im Body sein, sonst antwortet
+            // der Provider non-streaming -> leerer SSE-Reader -> falscher 204.
+            assertThat(body).contains("\"stream\":true")
         }
 
     @Test

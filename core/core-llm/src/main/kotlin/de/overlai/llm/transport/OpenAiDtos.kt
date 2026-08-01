@@ -1,5 +1,6 @@
 package de.overlai.llm.transport
 
+import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
@@ -13,7 +14,10 @@ import kotlinx.serialization.json.JsonElement
 internal data class OpenAiChatRequest(
     val model: String,
     val messages: List<OpenAiMessage>,
-    val stream: Boolean = true,
+    // MUSS im Body landen. encodeDefaults=false würde stream=true (== Default)
+    // sonst weglassen -> Provider antwortet non-streaming (ein JSON-Objekt statt
+    // SSE) -> unser SSE-Reader sieht keine data:-Zeile -> falscher "leerer Stream".
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS) val stream: Boolean = true,
     val temperature: Double? = null,
     @SerialName("max_tokens") val maxTokens: Int? = null,
 )
