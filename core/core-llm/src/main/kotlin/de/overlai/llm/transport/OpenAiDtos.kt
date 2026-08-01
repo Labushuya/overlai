@@ -31,6 +31,9 @@ internal data class OpenAiMessage(
 @Serializable
 internal data class OpenAiStreamChunk(
     val choices: List<OpenAiStreamChoice> = emptyList(),
+    // Manche OpenAI-kompatible Provider (v.a. OpenRouter) liefern HTTP 200 und
+    // schicken den Fehler IM Stream als data-Zeile mit einem error-Objekt.
+    val error: OpenAiError? = null,
 )
 
 @Serializable

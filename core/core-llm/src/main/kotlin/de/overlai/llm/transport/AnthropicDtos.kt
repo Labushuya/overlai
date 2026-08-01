@@ -37,6 +37,8 @@ internal data class AnthropicStreamEvent(
     val type: String,
     val delta: AnthropicDelta? = null,
     @SerialName("content_block") val contentBlock: AnthropicContentBlock? = null,
+    // SSE-Event type=="error" trägt das Fehlerobjekt inline (overloaded_error etc.).
+    val error: AnthropicError? = null,
 )
 
 @Serializable

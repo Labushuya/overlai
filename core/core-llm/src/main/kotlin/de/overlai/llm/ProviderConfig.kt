@@ -44,6 +44,9 @@ data class ProviderConfig(
     val transcribePath: String? = null,
     val requiresMaxTokens: Boolean = false,
     val systemPlacement: SystemPlacement = SystemPlacement.MESSAGE_ROLE,
+    // Statische Header, die bei jedem Request mitgehen (z.B. OpenRouters
+    // HTTP-Referer/X-Title). Bearer-Provider haben sonst keinen Header-Hook.
+    val staticHeaders: Map<String, String> = emptyMap(),
     // Cert-Pins (SHA-256 der SubjectPublicKeyInfo, Format "sha256/…") für den Host.
     val certPins: List<String> = emptyList(),
 ) {
