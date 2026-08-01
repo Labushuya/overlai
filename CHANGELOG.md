@@ -6,6 +6,13 @@ Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1
 die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 Dieser Changelog wird ab dem ersten Release von `release-please` gepflegt.
 
+## [0.6.1](https://github.com/Labushuya/overlai/compare/v0.6.0...v0.6.1) (2026-08-01)
+
+
+### Bug Fixes
+
+* **overlay:** Bubble reagiert auf Tap/Drag — Touch-Handling in Compose (pointerInput) ([188d08c](https://github.com/Labushuya/overlai/commit/188d08cc813be7e1b51e84af459ecc0028011e76))
+
 ## [0.6.0](https://github.com/Labushuya/overlai/compare/v0.5.1...v0.6.0) (2026-08-01)
 
 
