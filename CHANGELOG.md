@@ -6,6 +6,13 @@ Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1
 die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 Dieser Changelog wird ab dem ersten Release von `release-please` gepflegt.
 
+## [0.4.6](https://github.com/Labushuya/overlai/compare/v0.4.5...v0.4.6) (2026-08-01)
+
+
+### Bug Fixes
+
+* **core-llm:** stream:true im Body erzwingen — Root-Cause aller "leere Antwort"-204 ([99e61b2](https://github.com/Labushuya/overlai/commit/99e61b2ac74b363eaaf8f89d7e0f2a289462e597))
+
 ## [0.4.5](https://github.com/Labushuya/overlai/compare/v0.4.4...v0.4.5) (2026-08-01)
 
 
