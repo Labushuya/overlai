@@ -24,6 +24,7 @@ class SettingsStore(
     private val themeModeKey = stringPreferencesKey("theme_mode")
     private val dynamicColorKey = booleanPreferencesKey("use_dynamic_color")
     private val onboardingShownKey = booleanPreferencesKey("onboarding_shown")
+    private val overlayEnabledKey = booleanPreferencesKey("overlay_enabled")
 
     // Aktiver Provider (Default: OpenAI). Fällt auf OpenAI zurück, falls die
     // gespeicherte ID nicht mehr in der Registry existiert.
@@ -90,5 +91,17 @@ class SettingsStore(
 
     suspend fun markOnboardingShown() {
         context.settingsStore.edit { it[onboardingShownKey] = true }
+    }
+
+    // Overlay-Bubble: gewünschter Ein/Aus-Zustand (persistierter Nutzerwunsch). Der
+    // Service wird NICHT automatisch am App-Start gestartet — der Toggle steuert ihn
+    // explizit; dieses Flag hält nur den zuletzt gewählten Zustand für die UI.
+    val overlayEnabled: Flow<Boolean> =
+        context.settingsStore.data
+            .map { it[overlayEnabledKey] ?: false }
+            .distinctUntilChanged()
+
+    suspend fun setOverlayEnabled(enabled: Boolean) {
+        context.settingsStore.edit { it[overlayEnabledKey] = enabled }
     }
 }

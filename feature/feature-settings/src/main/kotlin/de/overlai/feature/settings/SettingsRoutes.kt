@@ -10,4 +10,5 @@ object SettingsRoutes {
     const val UPDATES = "settings/updates"
     const val ABOUT = "settings/about"
     const val APPEARANCE = "settings/appearance"
+    const val OVERLAY = "settings/overlay"
 }

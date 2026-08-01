@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  feature-overlay — Overlay-Bubble (M3). Diese Deklarationen werden ins App-Manifest
+  gemergt (Feature-Manifeste sind sonst leere Stubs, alle App-Deklarationen liegen
+  zentral — aber Overlay-Permissions + Service gehören fachlich zu diesem Modul).
+
+  - SYSTEM_ALERT_WINDOW: Bubble/Panel über anderen Apps (TYPE_APPLICATION_OVERLAY).
+  - FOREGROUND_SERVICE + _SPECIAL_USE: Der Bubble-Service läuft im Vordergrund.
+    specialUse (NICHT dataSync) — dataSync hat einen 6h-Cap, den ein dauerhaft
+    verfügbares Overlay überschreiten würde. Ab targetSdk 34+ ist der Subtyp
+    (PROPERTY_SPECIAL_USE_FGS_SUBTYPE) Pflicht.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
+    <application>
+        <service
+            android:name=".OverlayService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <!--
+              Begründung des specialUse-FGS für die Play-Console-Deklaration. OverlAI
+              ist sideload-only (kein Play Store), aber der Subtyp ist ab targetSdk 34
+              technisch erforderlich, sonst wirft startForeground eine Exception.
+            -->
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Persistent AI overlay bubble drawn over other apps at the user's request." />
+        </service>
+    </application>
+</manifest>

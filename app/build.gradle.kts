@@ -84,6 +84,7 @@ dependencies {
     implementation(project(":feature:feature-ocr"))
     implementation(project(":feature:feature-updater"))
     implementation(project(":feature:feature-settings"))
+    implementation(project(":feature:feature-overlay"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.core.splashscreen)
