@@ -72,19 +72,18 @@ internal object ModelParsers {
             if (outputs.isNotEmpty() && !outputs.any { it.equals("text", ignoreCase = true) }) {
                 return@mapNotNull null
             }
-            val free = isFree(entry, id)
+            val free = isFree(entry)
             ModelInfo(id = id, displayName = entry.name ?: id, free = free, context = entry.contextLength)
         }
     }
 
-    // Free = Preis numerisch <= 0 ODER id endet auf ":free".
-    private fun isFree(
-        entry: OpenRouterModelEntry,
-        id: String,
-    ): Boolean {
-        if (id.endsWith(":free", ignoreCase = true)) return true
-        val prompt = entry.pricing?.prompt?.toDoubleOrNull()
-        val completion = entry.pricing?.completion?.toDoubleOrNull()
-        return prompt != null && prompt <= 0.0 && (completion == null || completion <= 0.0)
+    // Free = der reale Preis ist 0. Der ":free"-Slug-Suffix ALLEIN reicht NICHT:
+    // OpenRouter hat viele ":free"-Slugs abgeschaltet ("unavailable for free"),
+    // sie tragen dann echten Preis > 0. Nur pricing ist die Wahrheit (fail-closed:
+    // fehlende Preisdaten -> NICHT als gratis markieren).
+    private fun isFree(entry: OpenRouterModelEntry): Boolean {
+        val prompt = entry.pricing?.prompt?.toDoubleOrNull() ?: return false
+        val completion = entry.pricing?.completion?.toDoubleOrNull() ?: return false
+        return prompt <= 0.0 && completion <= 0.0
     }
 }
