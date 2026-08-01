@@ -33,14 +33,24 @@ internal class OverlayLifecycleOwner :
     override val lifecycle: Lifecycle get() = lifecycleRegistry
     override val savedStateRegistry: SavedStateRegistry get() = savedStateController.savedStateRegistry
 
-    // Owner am View-Baum registrieren + Lifecycle bis RESUMED hochfahren. Einmal pro
-    // angezeigtem Overlay-Root aufrufen, bevor das View dem WindowManager übergeben wird.
+    // Phase 1: Owner am View-Baum registrieren, Lifecycle nur bis CREATED. VOR
+    // windowManager.addView aufrufen. Bewusst NICHT direkt RESUMED: der Compose-
+    // WindowRecomposer registriert seinen Observer erst beim Window-Attach und braucht
+    // DANACH einen Lifecycle-Übergang (STARTED/RESUMED), um den Frame-Clock zu starten.
+    // Setzt man RESUMED schon vor dem Attach, verpasst der Recomposer den Puls → keine
+    // Erstkomposition → ComposeView misst 0×0 → Fenster bleibt frame 0x0 / alpha 0.
     fun attachTo(view: View) {
         savedStateController.performRestore(null)
-        lifecycleRegistry.currentState = Lifecycle.State.RESUMED
         view.setViewTreeLifecycleOwner(this)
         view.setViewTreeViewModelStoreOwner(this)
         view.setViewTreeSavedStateRegistryOwner(this)
+        lifecycleRegistry.currentState = Lifecycle.State.CREATED
+    }
+
+    // Phase 2: NACH windowManager.addView aufrufen. Fährt STARTED→RESUMED hoch, sodass
+    // der beim Attach registrierte Recomposer die Übergänge sieht und zu komponieren beginnt.
+    fun markResumed() {
+        lifecycleRegistry.currentState = Lifecycle.State.RESUMED
     }
 
     // Lifecycle sauber herunterfahren, wenn das Overlay entfernt wird. Danach ist dieser

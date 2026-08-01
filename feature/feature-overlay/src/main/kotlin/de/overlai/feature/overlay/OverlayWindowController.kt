@@ -3,12 +3,12 @@ package de.overlai.feature.overlay
 import android.content.Context
 import android.graphics.PixelFormat
 import android.os.Build
+import android.util.TypedValue
 import android.view.Gravity
 import android.view.MotionEvent
-import android.view.View
 import android.view.WindowManager
 import androidx.compose.ui.platform.ComposeView
-import kotlin.math.abs
+import androidx.compose.ui.platform.ViewCompositionStrategy
 
 // CHANGE-MARKER v0.5.2: Overlay-Bubble (M3, siehe CHANGELOG.md)
 // Kapselt die gesamte WindowManager-Logik der Overlay-Bubble. Läuft aus dem
@@ -25,6 +25,9 @@ internal class OverlayWindowController(
 ) {
     private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
+    // Bubble: ComposeView als direktes Fenster-Root. Touch/Drag/Tap laufen über Compose
+    // (Modifier.pointerInput in OverlayBubble) — ein View.OnTouchListener am Root feuert
+    // nicht, weil der ComposeView ACTION_DOWN selbst konsumiert (Android-Dispatch-Kontrakt).
     private var bubbleView: ComposeView? = null
     private var bubbleOwner: OverlayLifecycleOwner? = null
     private lateinit var bubbleParams: WindowManager.LayoutParams
@@ -47,8 +50,10 @@ internal class OverlayWindowController(
 
         val params =
             WindowManager.LayoutParams(
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                WindowManager.LayoutParams.WRAP_CONTENT,
+                // Feste Pixelgröße (56dp) statt WRAP_CONTENT: ein ComposeView im
+                // WindowManager-Overlay misst mit WRAP_CONTENT unzuverlässig 0×0.
+                dpToPx(BUBBLE_SIZE_DP),
+                dpToPx(BUBBLE_SIZE_DP),
                 overlayType,
                 // NOT_FOCUSABLE: die Bubble greift keine Tasten/IME ab und lässt die
                 // darunterliegende App normal weiterlaufen.
@@ -62,16 +67,28 @@ internal class OverlayWindowController(
         bubbleParams = params
 
         val owner = OverlayLifecycleOwner()
-        val view =
+        val compose =
             ComposeView(context).apply {
-                setContent { OverlayBubble() }
+                // An DIESEN Lifecycle koppeln (nicht an einen Window-Pool ohne Activity).
+                setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnLifecycleDestroyed(owner))
+                setContent {
+                    OverlayBubble(
+                        // Drag verschiebt das Overlay-Fenster (delta-basiert aus Compose).
+                        onDrag = { dx, dy ->
+                            bubbleParams.x += dx
+                            bubbleParams.y += dy
+                            bubbleView?.let { windowManager.updateViewLayout(it, bubbleParams) }
+                        },
+                        onTap = { togglePanel() },
+                    )
+                }
             }
-        owner.attachTo(view)
-        view.setOnTouchListener(BubbleTouchListener())
+        owner.attachTo(compose) // Owner setzen + Lifecycle CREATED (vor addView)
 
         bubbleOwner = owner
-        bubbleView = view
-        windowManager.addView(view, params)
+        bubbleView = compose
+        windowManager.addView(compose, params)
+        owner.markResumed() // NACH addView: Recomposer sieht den Übergang → komponiert
     }
 
     // Panel auf-/zuklappen. Öffnet neben der aktuellen Bubble-Position.
@@ -105,6 +122,7 @@ internal class OverlayWindowController(
         val owner = OverlayLifecycleOwner()
         val view =
             ComposeView(context).apply {
+                setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnLifecycleDestroyed(owner))
                 setContent { OverlayPanel(chat = chatState, onClose = ::removePanel) }
             }
         owner.attachTo(view)
@@ -121,6 +139,7 @@ internal class OverlayWindowController(
         panelOwner = owner
         panelView = view
         windowManager.addView(view, params)
+        owner.markResumed()
         // Einmalig prüfen, ob ein Key hinterlegt ist (blendet sonst einen Hinweis ein).
         chatState.checkKey()
     }
@@ -145,54 +164,14 @@ internal class OverlayWindowController(
         bubbleOwner = null
     }
 
-    // Unterscheidet Tap (togglet das Panel) von Drag (verschiebt die Bubble). Der
-    // Schwellwert verhindert, dass ein minimaler Wackler als Tap durchgeht bzw. ein
-    // gewollter Tap fälschlich als Drag zählt.
-    private inner class BubbleTouchListener : View.OnTouchListener {
-        private var initialX = 0
-        private var initialY = 0
-        private var touchStartX = 0f
-        private var touchStartY = 0f
-        private var moved = false
-
-        override fun onTouch(
-            view: View,
-            event: MotionEvent,
-        ): Boolean {
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    initialX = bubbleParams.x
-                    initialY = bubbleParams.y
-                    touchStartX = event.rawX
-                    touchStartY = event.rawY
-                    moved = false
-                    return true
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    val dx = (event.rawX - touchStartX).toInt()
-                    val dy = (event.rawY - touchStartY).toInt()
-                    if (abs(dx) > TOUCH_SLOP_PX || abs(dy) > TOUCH_SLOP_PX) {
-                        moved = true
-                        bubbleParams.x = initialX + dx
-                        bubbleParams.y = initialY + dy
-                        bubbleView?.let { windowManager.updateViewLayout(it, bubbleParams) }
-                    }
-                    return true
-                }
-                MotionEvent.ACTION_UP -> {
-                    if (!moved) {
-                        view.performClick()
-                        togglePanel()
-                    }
-                    return true
-                }
-                else -> return false
-            }
-        }
-    }
+    // dp → px anhand der aktuellen Display-Dichte (feste Overlay-Fenstergröße).
+    private fun dpToPx(dp: Float): Int =
+        TypedValue
+            .applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp, context.resources.displayMetrics)
+            .toInt()
 
     private companion object {
-        // Bewegungsschwelle in px, ab der ein Touch als Drag (nicht Tap) gilt.
-        const val TOUCH_SLOP_PX = 16
+        // Feste Bubble-Kantenlänge in dp (muss zur BubbleSize in OverlayBubble.kt passen).
+        const val BUBBLE_SIZE_DP = 56f
     }
 }
