@@ -43,6 +43,12 @@ class UpdateViewModel(
             val versionName: String,
         ) : UiState
 
+        // Installation läuft: Systemdialog offen bzw. commit läuft.
+        data object Installing : UiState
+
+        // Installation erfolgreich abgeschlossen (STATUS_SUCCESS).
+        data object Installed : UiState
+
         data class Error(
             val message: String,
         ) : UiState
@@ -55,6 +61,22 @@ class UpdateViewModel(
 
     private val _state = MutableStateFlow<UiState>(UiState.Idle(currentVersion))
     val state: StateFlow<UiState> = _state.asStateFlow()
+
+    init {
+        // Der Install-Status kommt asynchron über den Broadcast-Receiver zurück.
+        viewModelScope.launch {
+            installer.status.collect { s ->
+                _state.value =
+                    when (s) {
+                        PackageInstallerSession.InstallStatus.Pending -> UiState.Installing
+                        PackageInstallerSession.InstallStatus.Success -> UiState.Installed
+                        is PackageInstallerSession.InstallStatus.Failure -> UiState.Error(s.message)
+                        // Idle nicht überschreiben — sonst Regression von Ready/Available etc.
+                        PackageInstallerSession.InstallStatus.Idle -> _state.value
+                    }
+            }
+        }
+    }
 
     fun check() {
         _state.value = UiState.Checking
@@ -82,12 +104,14 @@ class UpdateViewModel(
     }
 
     fun install(apk: File) {
+        _state.value = UiState.Installing
         viewModelScope.launch {
             val started = withContext(Dispatchers.IO) { installer.install(apk) }
             if (!started) {
                 _state.value = UiState.NeedsInstallPermission(apk)
             }
-            // Bei Erfolg übernimmt der System-Install-Dialog; kein weiterer UI-State.
+            // Bei Erfolg fließt der weitere Verlauf über installer.status (init-collect):
+            // Pending -> Installing (Systemdialog), Success -> Installed, Failure -> Error.
         }
     }
 }
