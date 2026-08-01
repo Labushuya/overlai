@@ -52,6 +52,12 @@ Dieser Changelog wird ab dem ersten Release von `release-please` gepflegt.
   sha256-Verifikation vor Installation, `PackageInstaller`-Session.
 
 ### Changed
+- **Release-APK baut jetzt automatisch nach Release-Please.** Bisher triggerte der
+  von Release-Please (GITHUB_TOKEN) erzeugte Tag den APK-Build nicht (GitHub-Anti-
+  Rekursion) → die APK musste per manuellem Tag-Repush nachgebaut werden. `release.yml`
+  läuft jetzt via `workflow_run` nach erfolgreichem „Release Please", ermittelt den
+  Tag über das neueste Release und baut/signiert/veröffentlicht automatisch. Ein
+  `workflow_dispatch`-Eingang bleibt als manueller (Neu-)Bau-Knopf.
 - **Provider-Setup spiegelt jetzt den echten Zustand.** Der Provider-Screen war
   immer auf OpenAI vorselektiert, egal welcher Provider aktiv war. Jetzt startet
   die Auswahl beim app-weit aktiven Provider, markiert ihn mit „● Aktiv", zeigt

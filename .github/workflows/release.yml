@@ -1,7 +1,13 @@
-# CHANGE-MARKER v0.1.0: Initiales Projektgrundgerüst (siehe CHANGELOG.md)
-# OverlAI — Release-Pipeline. Bei SemVer-Tag (v*) wird eine SIGNIERTE Universal-APK
-# gebaut und als GitHub Release veröffentlicht; zusätzlich wird latest.json erzeugt
-# und nach gh-pages gepusht (die Quelle für den In-App-Updater).
+# CHANGE-MARKER v0.4.4: Release via workflow_run statt Tag-Push (siehe CHANGELOG.md)
+# OverlAI — Release-Pipeline. Läuft NACH erfolgreichem "Release Please" (das den
+# Tag v* + ein leeres Release erzeugt) und baut die SIGNIERTE Universal-APK, hängt
+# sie ans Release und pusht latest.json nach gh-pages (Quelle des In-App-Updaters).
+#
+# WARUM workflow_run statt "on: push: tags": Ein Tag, den Release-Please mit dem
+# GITHUB_TOKEN erzeugt, triggert (GitHub-Anti-Rekursion) KEINEN weiteren Workflow.
+# Deshalb hängen wir uns an den Abschluss von "Release Please" und ermitteln den
+# frisch erzeugten Tag über das neueste Release. workflow_dispatch bleibt als
+# manueller (Neu-)Bau-Knopf für einen bestimmten Tag.
 #
 # LOAD-BEARING: Der Signing-Key MUSS über alle Releases STABIL sein. Ein Update mit
 # abweichender Signatur schlägt mit INSTALL_FAILED_UPDATE_INCOMPATIBLE fehl. Der
@@ -16,9 +22,14 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_run:
+    workflows: ["Release Please"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag zum (Neu-)Bauen, z.B. v0.4.4"
+        required: true
 
 permissions:
   contents: write   # Release anlegen + gh-pages pushen
@@ -27,29 +38,64 @@ jobs:
   release:
     name: Build, Sign & Release APK
     runs-on: ubuntu-latest
+    # Nur bauen, wenn Release-Please erfolgreich war (oder manueller Dispatch).
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
     steps:
+      # Tag bestimmen: aus dispatch-Input oder = neuestes Release (das eben von
+      # Release-Please erzeugte). Ohne Tag (z.B. Release-Please erzeugte nur einen
+      # PR-Update-Commit, kein Release) -> sauber abbrechen, kein Fehlbau.
+      - name: Tag ermitteln
+        id: tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DISPATCH_TAG: ${{ github.event.inputs.tag }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ -n "${DISPATCH_TAG:-}" ]; then
+            TAG="$DISPATCH_TAG"
+          else
+            TAG=$(gh release list --repo "$REPO" --limit 1 --json tagName --jq '.[0].tagName // ""')
+          fi
+          if [ -z "$TAG" ]; then
+            echo "::notice::Kein Release-Tag gefunden (vermutlich nur PR-Update) — nichts zu bauen."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Baue Tag: $TAG"
+
       - name: Checkout
+        if: steps.tag.outputs.skip != 'true'
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ steps.tag.outputs.tag }}   # exakt den getaggten App-Stand bauen
 
       - name: Setup Java 21 (Temurin)
+        if: steps.tag.outputs.skip != 'true'
         uses: actions/setup-java@3a4f6e1af504cf6a31855fa899c6aa5355ba6c12 # v4.7.0
         with:
           distribution: temurin
           java-version: "21"
 
       - name: Setup Android SDK
+        if: steps.tag.outputs.skip != 'true'
         uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3.2.2
 
       - name: Setup Gradle (mit Build-Cache)
+        if: steps.tag.outputs.skip != 'true'
         uses: gradle/actions/setup-gradle@0bdd871935719febd78681f197cd39af5b6e16a6 # v4.2.2
 
       # Version aus dem Tag ableiten: v1.2.3 -> versionName=1.2.3.
       # versionCode = numerisch aus SemVer (1.2.3 -> 10203), monoton steigend.
       - name: Version aus Tag ableiten
         id: version
+        if: steps.tag.outputs.skip != 'true'
         run: |
           set -euo pipefail
-          TAG="${GITHUB_REF_NAME}"
+          TAG="${{ steps.tag.outputs.tag }}"
           VERSION="${TAG#v}"
           IFS='.' read -r MAJ MIN PAT <<< "$VERSION"
           CODE=$(( MAJ * 10000 + MIN * 100 + PAT ))
@@ -59,12 +105,14 @@ jobs:
 
       # Tests als Gate: kein Release bei rotem Test.
       - name: Test-Gate
+        if: steps.tag.outputs.skip != 'true'
         run: ./gradlew testDebugUnitTest test
 
       # Keystore aus base64-Secret rekonstruieren + keystore.properties schreiben.
       # Fehlt das Secret, bricht der Release-Build HART ab (anders als bei CI-Debug):
       # ein unsigniertes/debug-signiertes Release würde den Updater dauerhaft brechen.
       - name: Release-Signierung einrichten
+        if: steps.tag.outputs.skip != 'true'
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -91,6 +139,7 @@ jobs:
       # Signierte Universal-APK bauen. KEIN ABI-Split -> genau eine APK, die
       # latest.json referenzieren kann.
       - name: Release-APK bauen (signiert)
+        if: steps.tag.outputs.skip != 'true'
         run: |
           ./gradlew :app:assembleRelease \
             -PoverlaiVersionName=${{ steps.version.outputs.versionName }} \
@@ -99,12 +148,13 @@ jobs:
       # APK finden, versioniert umbenennen, sha256 + Größe berechnen.
       - name: APK aufbereiten (rename + sha256)
         id: apk
+        if: steps.tag.outputs.skip != 'true'
         run: |
           set -euo pipefail
           SRC=$(find app/build/outputs/apk/release -name "*.apk" | head -1)
           test -n "$SRC"
           mkdir -p dist
-          OUT="dist/overlai-${GITHUB_REF_NAME}.apk"
+          OUT="dist/overlai-${{ steps.tag.outputs.tag }}.apk"
           cp "$SRC" "$OUT"
           SHA=$(sha256sum "$OUT" | cut -d' ' -f1)
           SIZE=$(stat -c%s "$OUT")
@@ -113,14 +163,17 @@ jobs:
           echo "size=$SIZE"  >> "$GITHUB_OUTPUT"
           echo "APK: $OUT ($SIZE bytes, sha256=$SHA)"
 
-      # GitHub Release mit der APK erstellen.
+      # GitHub Release mit der APK erstellen (hängt an das von Release-Please
+      # erzeugte, noch leere Release am selben Tag — kein Duplikat).
       - name: GitHub Release erstellen
+        if: steps.tag.outputs.skip != 'true'
         uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda # v2.2.1
         with:
+          tag_name: ${{ steps.tag.outputs.tag }}
           files: ${{ steps.apk.outputs.path }}
           generate_release_notes: true
           body: |
-            ## OverlAI ${{ github.ref_name }}
+            ## OverlAI ${{ steps.tag.outputs.tag }}
 
             Automatisch gebaut, getestet und signiert via GitHub Actions.
 
@@ -133,6 +186,7 @@ jobs:
 
       # latest.json für den In-App-Updater erzeugen und nach gh-pages pushen.
       - name: latest.json erzeugen
+        if: steps.tag.outputs.skip != 'true'
         run: |
           set -euo pipefail
           mkdir -p publish
@@ -141,7 +195,7 @@ jobs:
             "versionName": "${{ steps.version.outputs.versionName }}",
             "versionCode": ${{ steps.version.outputs.versionCode }},
             "minSdk": 26,
-            "apkUrl": "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/overlai-${{ github.ref_name }}.apk",
+            "apkUrl": "https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/overlai-${{ steps.tag.outputs.tag }}.apk",
             "sha256": "${{ steps.apk.outputs.sha256 }}",
             "sizeBytes": ${{ steps.apk.outputs.size }},
             "mandatory": false
@@ -150,6 +204,7 @@ jobs:
           cat publish/latest.json
 
       - name: latest.json nach gh-pages veröffentlichen
+        if: steps.tag.outputs.skip != 'true'
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -164,5 +219,5 @@ jobs:
           fi
           cp publish/latest.json latest.json
           git add latest.json
-          git commit -m "chore(release): latest.json -> ${{ github.ref_name }}" || echo "keine Änderung"
+          git commit -m "chore(release): latest.json -> ${{ steps.tag.outputs.tag }}" || echo "keine Änderung"
           git push origin gh-pages
