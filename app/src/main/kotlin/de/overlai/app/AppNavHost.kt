@@ -20,6 +20,7 @@ import de.overlai.feature.chat.ChatScreen
 import de.overlai.feature.chat.ChatViewModel
 import de.overlai.feature.onboarding.ProviderHubScreen
 import de.overlai.feature.onboarding.ProviderHubViewModel
+import de.overlai.feature.overlay.OverlayService
 import de.overlai.feature.permissions.PermissionChecks
 import de.overlai.feature.permissions.PermissionHubScreen
 import de.overlai.feature.permissions.PermissionHubState
@@ -30,7 +31,6 @@ import de.overlai.feature.settings.AppearanceViewModel
 import de.overlai.feature.settings.OverlaySettingsScreen
 import de.overlai.feature.settings.SettingsListScreen
 import de.overlai.feature.settings.SettingsRoutes
-import de.overlai.feature.overlay.OverlayService
 import de.overlai.feature.updater.UpdateViewModel
 import de.overlai.feature.updater.UpdatesScreen
 import de.overlai.llm.providers.ProviderRegistry
