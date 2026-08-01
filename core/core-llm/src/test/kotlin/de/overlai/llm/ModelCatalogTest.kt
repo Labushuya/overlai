@@ -149,10 +149,59 @@ class ModelCatalogTest {
         }
 
     @Test
-    fun `static-fallback provider returns defaultModel without http`() =
+    fun `kimi loads live models and filters non-chat`() =
         runTest {
-            // grok hat keinen bestätigten Endpoint -> StaticModels, kein Server-Call.
-            val models = catalog.list(ProviderRegistry.GROK, "sk").map { it.id }
-            assertThat(models).contains(ProviderRegistry.GROK.defaultModel)
+            server.enqueue(
+                MockResponse().setBody(
+                    """{"data":[{"id":"kimi-k2.6"},{"id":"moonshot-v1-128k"},
+                       {"id":"moonshot-v1-8k-vision-preview"},{"id":"some-embedding"}]}""",
+                ),
+            )
+            val models = catalog.list(cfg(ProviderRegistry.KIMI), "sk-kimi").map { it.id }
+            assertThat(server.takeRequest().path).isEqualTo("/v1/models")
+            assertThat(models).containsAtLeast("kimi-k2.6", "moonshot-v1-128k")
+            // vision-preview + embedding -> raus (Deny-Netz).
+            assertThat(models).containsNoneOf("moonshot-v1-8k-vision-preview", "some-embedding")
+        }
+
+    @Test
+    fun `grok loads live models with grok allow-prefix`() =
+        runTest {
+            server.enqueue(
+                MockResponse().setBody("""{"data":[{"id":"grok-4.5"},{"id":"grok-4.3"},{"id":"random-thing"}]}"""),
+            )
+            val models = catalog.list(cfg(ProviderRegistry.GROK), "sk-grok").map { it.id }
+            assertThat(server.takeRequest().path).isEqualTo("/v1/models")
+            assertThat(models).containsAtLeast("grok-4.5", "grok-4.3")
+            assertThat(models).doesNotContain("random-thing")
+        }
+
+    @Test
+    fun `gemini strips models prefix and uses shim path`() =
+        runTest {
+            server.enqueue(
+                MockResponse().setBody(
+                    """{"data":[{"id":"models/gemini-2.5-flash"},{"id":"models/gemini-2.5-pro"},
+                       {"id":"models/gemini-embedding-001"}]}""",
+                ),
+            )
+            val models = catalog.list(cfg(ProviderRegistry.GEMINI), "sk-gem").map { it.id }
+            // baseUrl endet auf /v1beta/openai -> Pfad nur /models.
+            assertThat(server.takeRequest().path).isEqualTo("/models")
+            // "models/"-Präfix gestrippt.
+            assertThat(models).containsAtLeast("gemini-2.5-flash", "gemini-2.5-pro")
+            assertThat(models).doesNotContain("models/gemini-2.5-flash")
+            // Embedding raus.
+            assertThat(models).doesNotContain("gemini-embedding-001")
+        }
+
+    @Test
+    fun `catalog error falls back to non-empty static list`() =
+        runTest {
+            // Netzfehler bei einem Live-Provider -> StaticModels (nie leer, defaultModel drin).
+            server.enqueue(MockResponse().setResponseCode(500).setBody("boom"))
+            val models = catalog.list(cfg(ProviderRegistry.KIMI), "sk").map { it.id }
+            assertThat(models).isNotEmpty()
+            assertThat(models).contains(ProviderRegistry.KIMI.defaultModel)
         }
 }

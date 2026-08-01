@@ -11,9 +11,9 @@ internal object StaticModels {
     fun forProvider(config: ProviderConfig): List<ModelInfo> {
         val curated =
             when (config.id) {
-                "gemini" -> listOf("gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash")
-                "kimi" -> listOf("moonshot-v1-8k", "moonshot-v1-32k", "moonshot-v1-128k")
-                "grok" -> listOf("grok-2-latest", "grok-2-vision-latest")
+                "gemini" -> listOf("gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.5-flash-lite")
+                "kimi" -> listOf("kimi-k2.6", "moonshot-v1-128k")
+                "grok" -> listOf("grok-4.5", "grok-4.3")
                 // Falls der Live-Katalog scheitert: eine echte Auswahl statt 1 Eintrag.
                 "openrouter" -> listOf("openai/gpt-4o", "anthropic/claude-3.5-sonnet")
                 else -> emptyList()

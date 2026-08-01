@@ -18,6 +18,9 @@ internal object ModelParsers {
     // Erlaubte ID-Präfixe je OpenAI-Shape-Provider (fail-closed).
     private val OPENAI_ALLOW = listOf("gpt-", "o1", "o3", "o4", "chatgpt")
     private val DEEPSEEK_ALLOW = listOf("deepseek-")
+    private val KIMI_ALLOW = listOf("kimi-", "moonshot-")
+    private val GROK_ALLOW = listOf("grok-")
+    private val GEMINI_ALLOW = listOf("gemini-") // nach models/-Strip
 
     fun parse(
         providerId: String,
@@ -28,6 +31,9 @@ internal object ModelParsers {
             "openrouter" -> parseOpenRouter(body, json)
             "anthropic" -> parseAnthropic(body, json)
             "deepseek" -> parseOpenAiShape(body, json, DEEPSEEK_ALLOW)
+            "kimi" -> parseOpenAiShape(body, json, KIMI_ALLOW)
+            "grok" -> parseOpenAiShape(body, json, GROK_ALLOW)
+            "gemini" -> parseOpenAiShape(body, json, GEMINI_ALLOW, stripPrefix = "models/")
             else -> parseOpenAiShape(body, json, OPENAI_ALLOW) // openai
         }.distinctBy { it.id }.sortedBy { it.displayName.lowercase() }
 
@@ -37,10 +43,13 @@ internal object ModelParsers {
         body: String,
         json: Json,
         allow: List<String>,
+        stripPrefix: String? = null,
     ): List<ModelInfo> {
         val resp = json.decodeFromString(OpenAiModelsResponse.serializer(), body)
         return resp.data.mapNotNull { entry ->
-            val id = entry.id ?: return@mapNotNull null
+            val raw = entry.id ?: return@mapNotNull null
+            // Gemini-Shim liefert IDs als "models/gemini-…" -> erst strippen, dann filtern.
+            val id = if (stripPrefix != null) raw.removePrefix(stripPrefix) else raw
             if (deny(id)) return@mapNotNull null
             if (allow.none { id.startsWith(it) }) return@mapNotNull null
             ModelInfo(id = id, displayName = id)
