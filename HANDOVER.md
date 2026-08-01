@@ -1,6 +1,6 @@
 # OverlAI — Session-Handover
 
-**Stand:** 2026-08-01 · **Letzter Release:** v0.5.0 (live, APK verifiziert) · **Repo:** `Labushuya/overlai` (public) · **Lokal:** `C:\Code\claude\apps\overlai`
+**Stand:** 2026-08-01 · **Letzter Release:** v0.5.1 (live, APK + latest.json verifiziert; enthält den Anthropic-`stream`-Fix) · **Repo:** `Labushuya/overlai` (public) · **Lokal:** `C:\Code\claude\apps\overlai`
 
 Dieses Dokument ist der Übergabepunkt zwischen Sessions. Es beschreibt den **aktuellen Stand**, die **gelösten und offenen Probleme** und die **Roadmap**. Nach einer Kontextbereinigung hier ansetzen.
 
@@ -52,7 +52,7 @@ Architektur: `feature-*` hängen nur an `core-*`, nie aneinander; Wiring/DI nur 
 
 **Sofort:**
 1. ~~v0.5.0-APK-Sichtbarkeit klären~~ **ERLEDIGT** — APK vorhanden, v0.5.0 am Gerät getestet, funktional.
-2. **v0.5.0 Gerätetest (Rest):** Provider-Hub läuft; Kimi ok. Offen zum Gegenprüfen: OpenRouter (echtes Modell) + DeepSeek mit `stream`-Fix; Anthropic (eigener Adapter) separat — **latenter `stream`-Bug ist inzwischen gefixt (s.o.), also erst nach dem nächsten Release testen, sonst greift der alte Code**.
+2. **v0.5.0 Gerätetest (Rest):** Provider-Hub läuft; Kimi ok. Offen zum Gegenprüfen: OpenRouter (echtes Modell) + DeepSeek mit `stream`-Fix; Anthropic (eigener Adapter) separat — **`stream`-Fix ist in v0.5.1 released, jetzt am Gerät testbar** (auf v0.5.1 updaten, dann testen). OpenRouter: bezahltes Modell nehmen (`openai/gpt-4o-mini`), nicht `:free` (oft abgeschaltet → Fehler fälschlich dem Fix zugeschrieben). DeepSeek: `deepseek-chat` = einfacher Fall; `deepseek-reasoner` (R1) streamt erst `reasoning_content`.
 
 **Feinschliff (klein):**
 - „Alle Keys löschen" in Einstellungen (`KeyVault.clear()` existiert, kein Button).
