@@ -74,7 +74,7 @@ class OpenAiCompatProviderTest {
             server.enqueue(
                 MockResponse()
                     .setHeader("Content-Type", "text/event-stream")
-                    .setBody("data: [DONE]\n\n"),
+                    .setBody("""data: {"choices":[{"delta":{"content":"hi"}}]}""" + "\n\n" + "data: [DONE]\n\n"),
             )
 
             val provider = factory.create(mockConfig())
@@ -163,7 +163,9 @@ class OpenAiCompatProviderTest {
     fun `vision request serializes image as data url part`() =
         runTest {
             server.enqueue(
-                MockResponse().setHeader("Content-Type", "text/event-stream").setBody("data: [DONE]\n\n"),
+                MockResponse()
+                    .setHeader("Content-Type", "text/event-stream")
+                    .setBody("""data: {"choices":[{"delta":{"content":"ok"}}]}""" + "\n\n" + "data: [DONE]\n\n"),
             )
 
             val provider = factory.create(mockConfig())
@@ -180,5 +182,66 @@ class OpenAiCompatProviderTest {
             val body = server.takeRequest().body.readUtf8()
             assertThat(body).contains("\"type\":\"image_url\"")
             assertThat(body).contains("data:image/png;base64,")
+        }
+
+    @Test
+    fun `in-stream error object is surfaced, not swallowed (empty bubble bug)`() =
+        runTest {
+            // OpenRouter-Muster: HTTP 200, aber Fehler als data-Zeile im Stream.
+            server.enqueue(
+                MockResponse()
+                    .setHeader("Content-Type", "text/event-stream")
+                    .setBody("""data: {"error":{"message":"rate-limited upstream","code":429}}""" + "\n\n"),
+            )
+            val provider = factory.create(mockConfig())
+            var caught: Throwable? = null
+            try {
+                provider
+                    .chat(ChatRequest(model = "gpt-4o", messages = listOf(ChatMessage(Role.USER, "hi"))), "sk")
+                    .toList()
+            } catch (e: Throwable) {
+                caught = e
+            }
+            // "rate/limit" -> RateLimited; auf jeden Fall NICHT still verschluckt.
+            assertThat(caught).isInstanceOf(LlmError::class.java)
+        }
+
+    @Test
+    fun `stream with zero content deltas fails instead of empty bubble`() =
+        runTest {
+            // Nur ein role-Delta ohne content, dann DONE -> darf keine leere Bubble geben.
+            server.enqueue(
+                MockResponse()
+                    .setHeader("Content-Type", "text/event-stream")
+                    .setBody("""data: {"choices":[{"delta":{}}]}""" + "\n\n" + "data: [DONE]\n\n"),
+            )
+            val provider = factory.create(mockConfig())
+            var caught: Throwable? = null
+            try {
+                provider
+                    .chat(ChatRequest(model = "gpt-4o", messages = listOf(ChatMessage(Role.USER, "hi"))), "sk")
+                    .toList()
+            } catch (e: Throwable) {
+                caught = e
+            }
+            assertThat(caught).isInstanceOf(LlmError::class.java)
+        }
+
+    @Test
+    fun `openrouter request carries HTTP-Referer and X-Title`() =
+        runTest {
+            server.enqueue(
+                MockResponse()
+                    .setHeader("Content-Type", "text/event-stream")
+                    .setBody("""data: {"choices":[{"delta":{"content":"hi"}}]}""" + "\n\n" + "data: [DONE]\n\n"),
+            )
+            val config = ProviderRegistry.OPENROUTER.copy(baseUrl = server.url("/").toString().trimEnd('/'))
+            factory
+                .create(config)
+                .chat(ChatRequest(model = "x", messages = listOf(ChatMessage(Role.USER, "hi"))), "sk-or")
+                .toList()
+            val rec = server.takeRequest()
+            assertThat(rec.getHeader("HTTP-Referer")).isNotEmpty()
+            assertThat(rec.getHeader("X-Title")).isEqualTo("OverlAI")
         }
 }

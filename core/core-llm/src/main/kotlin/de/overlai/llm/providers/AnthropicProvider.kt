@@ -6,6 +6,7 @@ import de.overlai.llm.ChatRequest
 import de.overlai.llm.LlmError
 import de.overlai.llm.LlmProvider
 import de.overlai.llm.ProviderConfig
+import de.overlai.llm.transport.AnthropicError
 import de.overlai.llm.transport.AnthropicErrorEnvelope
 import de.overlai.llm.transport.AnthropicMessageMapper
 import de.overlai.llm.transport.AnthropicRequest
@@ -75,19 +76,46 @@ internal class AnthropicProvider(
                                 return
                             }
                             try {
+                                var sawContent = false
                                 while (!source.exhausted()) {
                                     val line = source.readUtf8Line() ?: break
                                     when (val event = SseLineParser.parseLine(line)) {
-                                        is SseLineParser.Event.Data -> emitDelta(event.json)?.let { trySend(it) }
+                                        is SseLineParser.Event.Data ->
+                                            when (val parsed = parseEvent(event.json)) {
+                                                is EventResult.Delta -> {
+                                                    if (parsed.chatDelta.text.isNotEmpty()) sawContent = true
+                                                    trySend(parsed.chatDelta)
+                                                }
+                                                is EventResult.StreamError -> {
+                                                    close(parsed.error)
+                                                    return
+                                                }
+                                                EventResult.Ignore -> Unit
+                                            }
                                         SseLineParser.Event.Done -> Unit // Anthropic nutzt message_stop, kein [DONE]
                                         SseLineParser.Event.Ignore -> Unit
                                     }
                                 }
-                                trySend(ChatDelta(text = "", done = true))
-                                close()
+                                finishStream(sawContent)
                             } catch (e: IOException) {
                                 close(LlmError.Network("Stream-Fehler", e))
                             }
+                        }
+                    }
+
+                    // Stream sauber beenden; ohne jeden Content ist das eine ehrliche
+                    // Leer-Meldung statt einer stummen leeren Bubble.
+                    private fun finishStream(sawContent: Boolean) {
+                        if (sawContent) {
+                            trySend(ChatDelta(text = "", done = true))
+                            close()
+                        } else {
+                            close(
+                                LlmError.Api(
+                                    EMPTY_RESPONSE_CODE,
+                                    "Leere Antwort vom Modell — kurz warten oder ein anderes Modell wählen.",
+                                ),
+                            )
                         }
                     }
                 },
@@ -96,23 +124,56 @@ internal class AnthropicProvider(
             awaitClose { call.cancel() }
         }
 
-    private fun emitDelta(chunkJson: String): ChatDelta? =
-        try {
-            val event = json.decodeFromString(AnthropicStreamEvent.serializer(), chunkJson)
-            when (event.type) {
-                "content_block_delta" -> {
-                    val text = event.delta?.text
-                    if (text.isNullOrEmpty()) null else ChatDelta(text = text)
-                }
-                "message_delta" -> {
-                    val reason = event.delta?.stopReason
-                    if (reason != null) ChatDelta(text = "", finishReason = reason) else null
-                }
-                else -> null // message_start, content_block_start/stop, ping, message_stop
-            }
-        } catch (_: Exception) {
-            null
+    // Ergebnis eines geparsten SSE-Events.
+    private sealed interface EventResult {
+        data class Delta(
+            val chatDelta: ChatDelta,
+        ) : EventResult
+
+        data class StreamError(
+            val error: LlmError,
+        ) : EventResult
+
+        data object Ignore : EventResult
+    }
+
+    private fun parseEvent(chunkJson: String): EventResult {
+        val event =
+            runCatching { json.decodeFromString(AnthropicStreamEvent.serializer(), chunkJson) }
+                .getOrNull() ?: return EventResult.Ignore
+        // type=="error" trägt das Fehlerobjekt inline (overloaded_error etc.) bei HTTP 200.
+        if (event.type == "error" && event.error != null) {
+            return EventResult.StreamError(mapStreamError(event.error))
         }
+        return when (event.type) {
+            "content_block_delta" -> {
+                val text = event.delta?.text
+                if (text.isNullOrEmpty()) EventResult.Ignore else EventResult.Delta(ChatDelta(text = text))
+            }
+            "message_delta" -> {
+                val reason = event.delta?.stopReason
+                if (reason != null) {
+                    EventResult.Delta(
+                        ChatDelta(text = "", finishReason = reason),
+                    )
+                } else {
+                    EventResult.Ignore
+                }
+            }
+            else -> EventResult.Ignore // message_start, content_block_start/stop, ping, message_stop
+        }
+    }
+
+    // In-Stream-Fehler (type=="error" bei HTTP 200) -> typisierter LlmError.
+    private fun mapStreamError(error: AnthropicError): LlmError {
+        val msg = error.message?.ifBlank { null } ?: "Provider-Fehler im Stream"
+        return when (error.type) {
+            "overloaded_error" -> LlmError.RateLimited("Anthropic überlastet — kurz warten. ($msg)")
+            "rate_limit_error" -> LlmError.RateLimited("Limit erreicht — kurz warten. ($msg)")
+            "authentication_error" -> LlmError.Unauthorized(msg)
+            else -> LlmError.Api(STREAM_ERROR_CODE, msg)
+        }
+    }
 
     private fun mapHttpError(response: Response): LlmError {
         val bodyText = runCatching { response.body?.string().orEmpty() }.getOrDefault("")
@@ -152,5 +213,7 @@ internal class AnthropicProvider(
         const val HTTP_UNAUTHORIZED = 401
         const val HTTP_FORBIDDEN = 403
         const val HTTP_TOO_MANY_REQUESTS = 429
+        const val STREAM_ERROR_CODE = 502
+        const val EMPTY_RESPONSE_CODE = 204
     }
 }

@@ -67,7 +67,10 @@ class AnthropicProviderTest {
             server.enqueue(
                 MockResponse()
                     .setHeader("Content-Type", "text/event-stream")
-                    .setBody("""data: {"type":"message_stop"}""" + "\n\n"),
+                    .setBody(
+                        """data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"ok"}}""" + "\n\n" +
+                            """data: {"type":"message_stop"}""" + "\n\n",
+                    ),
             )
 
             val provider = factory.create(mockConfig())
@@ -113,5 +116,58 @@ class AnthropicProviderTest {
                 caught = e
             }
             assertThat(caught).isInstanceOf(LlmError.Unauthorized::class.java)
+        }
+
+    @Test
+    fun `in-stream error event is surfaced, not swallowed (empty bubble bug)`() =
+        runTest {
+            // Anthropic-Muster: HTTP 200, aber type=="error" (overloaded) als SSE-Event.
+            server.enqueue(
+                MockResponse()
+                    .setHeader("Content-Type", "text/event-stream")
+                    .setBody(
+                        """data: {"type":"error","error":""" +
+                            """{"type":"overloaded_error","message":"overloaded"}}""" + "\n\n",
+                    ),
+            )
+            val provider = factory.create(mockConfig())
+            var caught: Throwable? = null
+            try {
+                provider
+                    .chat(
+                        ChatRequest(model = "claude-opus-5", messages = listOf(ChatMessage(Role.USER, "hi"))),
+                        apiKey = "sk-ant",
+                    ).toList()
+            } catch (e: Throwable) {
+                caught = e
+            }
+            // overloaded_error -> RateLimited; auf jeden Fall NICHT still verschluckt.
+            assertThat(caught).isInstanceOf(LlmError.RateLimited::class.java)
+        }
+
+    @Test
+    fun `stream with zero content fails instead of empty bubble`() =
+        runTest {
+            // Nur message_start/stop, keine text_delta -> darf keine leere Bubble geben.
+            server.enqueue(
+                MockResponse()
+                    .setHeader("Content-Type", "text/event-stream")
+                    .setBody(
+                        """data: {"type":"message_start","message":{}}""" + "\n\n" +
+                            """data: {"type":"message_stop"}""" + "\n\n",
+                    ),
+            )
+            val provider = factory.create(mockConfig())
+            var caught: Throwable? = null
+            try {
+                provider
+                    .chat(
+                        ChatRequest(model = "claude-opus-5", messages = listOf(ChatMessage(Role.USER, "hi"))),
+                        apiKey = "sk-ant",
+                    ).toList()
+            } catch (e: Throwable) {
+                caught = e
+            }
+            assertThat(caught).isInstanceOf(LlmError::class.java)
         }
 }

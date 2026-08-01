@@ -14,6 +14,7 @@ secrets.*
 
 # ------------------------- Gradle / Build -------------------------
 .gradle/
+.kotlin/               # Kotlin-Daemon-Session-Artefakte (kein Quellcode)
 build/
 **/build/
 !build-logic/           # build-logic ist Quellcode, nicht Artefakt

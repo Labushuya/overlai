@@ -95,6 +95,13 @@ object ProviderRegistry {
             authScheme = AuthScheme.Bearer,
             capabilities = setOf(Capability.CHAT, Capability.VISION, Capability.TOOL_USE),
             defaultModel = "openai/gpt-4o",
+            // OpenRouter empfiehlt diese Header (App-Identifikation); ohne sie werden
+            // manche (v.a. kostenlose) Modelle gedrosselt/abgelehnt.
+            staticHeaders =
+                mapOf(
+                    "HTTP-Referer" to "https://github.com/Labushuya/overlai",
+                    "X-Title" to "OverlAI",
+                ),
         )
 
     // Google Gemini über den OpenAI-kompatiblen Shim-Endpoint (/v1beta/openai/).

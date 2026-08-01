@@ -27,6 +27,18 @@ Dieser Changelog wird ab dem ersten Release von `release-please` gepflegt.
 - **In-App-Updater:** `latest.json`-Check, SemVer (Downgrade abgelehnt),
   sha256-Verifikation vor Installation, `PackageInstaller`-Session.
 
+### Fixed
+- **Leere Chat-Bubble bei In-Stream-Fehlern:** Manche OpenAI-kompatible Provider
+  (v.a. OpenRouter `:free`) antworten mit HTTP 200 und liefern den Fehler erst als
+  `data`-Zeile (`{"error":…}`) im SSE-Stream. Der wurde bisher verschluckt → Stream
+  endete ohne Content → stumme leere Bubble. Jetzt werden In-Stream-Fehler erkannt
+  und als typisierter `LlmError` (RateLimited / InsufficientQuota / Unauthorized)
+  gemeldet; ein Stream ganz ohne Content endet mit einer ehrlichen Leer-Meldung.
+  Gilt für den OpenAI-compat-Transport **und** den Anthropic-Adapter
+  (`type:"error"`, z.B. `overloaded_error`).
+- **OpenRouter:** `HTTP-Referer`- und `X-Title`-Header werden mitgeschickt (von
+  OpenRouter empfohlen; ohne sie werden v.a. kostenlose Modelle gedrosselt).
+
 ### Tested
 - JVM-Unit-Tests: OpenAI-SSE-Transport (MockWebServer), CapabilityRouter,
   SseLineParser, KeyRedactor, SemVer, Sha256Verifier, UpdateChecker.
