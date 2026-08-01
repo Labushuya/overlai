@@ -1,9 +1,9 @@
 {
-  "versionName": "0.6.0",
-  "versionCode": 600,
+  "versionName": "0.6.1",
+  "versionCode": 601,
   "minSdk": 26,
-  "apkUrl": "https://github.com/Labushuya/overlai/releases/download/v0.6.0/overlai-v0.6.0.apk",
-  "sha256": "426d0635c6f5093950d0cb80c7aa7083d6827b8d8ee290914af1ddcb8c9ba79c",
+  "apkUrl": "https://github.com/Labushuya/overlai/releases/download/v0.6.1/overlai-v0.6.1.apk",
+  "sha256": "03df5c3cafd7198282f9e53d078da874eef8553729da0baf3c2dc0d347e3e8a7",
   "sizeBytes": 45475663,
   "mandatory": false
 }
