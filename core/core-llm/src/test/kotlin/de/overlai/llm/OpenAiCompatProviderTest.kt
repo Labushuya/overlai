@@ -187,7 +187,8 @@ class OpenAiCompatProviderTest {
     @Test
     fun `in-stream error object is surfaced, not swallowed (empty bubble bug)`() =
         runTest {
-            // OpenRouter-Muster: HTTP 200, aber Fehler als data-Zeile im Stream.
+            // OpenRouter-Muster: HTTP 200, aber Fehler als data-Zeile im Stream —
+            // MIT NUMERISCHEM code (429), wie OpenRouter/OpenAI es real schicken.
             server.enqueue(
                 MockResponse()
                     .setHeader("Content-Type", "text/event-stream")
@@ -202,8 +203,9 @@ class OpenAiCompatProviderTest {
             } catch (e: Throwable) {
                 caught = e
             }
-            // "rate/limit" -> RateLimited; auf jeden Fall NICHT still verschluckt.
-            assertThat(caught).isInstanceOf(LlmError::class.java)
+            // Numerischer code darf die Deser NICHT kippen -> muss als RateLimited ankommen,
+            // NICHT als generische 204-Leermeldung (das war der :free-Bug).
+            assertThat(caught).isInstanceOf(LlmError.RateLimited::class.java)
         }
 
     @Test
@@ -244,4 +246,50 @@ class OpenAiCompatProviderTest {
             assertThat(rec.getHeader("HTTP-Referer")).isNotEmpty()
             assertThat(rec.getHeader("X-Title")).isEqualTo("OverlAI")
         }
+
+    @Test
+    fun `openrouter free-unavailable (numeric 404 in stream) is surfaced honestly`() =
+        runTest {
+            // Realer OpenRouter-:free-Fall: HTTP 200, im Stream {"error":{...,"code":404}}
+            // mit "unavailable for free". Vor dem Fix kippte der numerische code die Deser
+            // -> verschluckt -> generische 204. Jetzt: klare Api-Meldung, kein Verschlucken.
+            server.enqueue(
+                MockResponse()
+                    .setHeader("Content-Type", "text/event-stream")
+                    .setBody(
+                        """data: {"error":{"message":"This model is unavailable for free.",""" +
+                            """"code":404},"user_id":"u_1"}""" + "\n\n",
+                    ),
+            )
+            val provider = factory.create(mockConfig())
+            var caught: Throwable? = null
+            try {
+                provider
+                    .chat(
+                        ChatRequest(
+                            model = "deepseek/deepseek-r1:free",
+                            messages = listOf(ChatMessage(Role.USER, "hi")),
+                        ),
+                        "sk",
+                    ).toList()
+            } catch (e: Throwable) {
+                caught = e
+            }
+            assertThat(caught).isInstanceOf(LlmError.Api::class.java)
+            assertThat((caught as LlmError.Api).message).contains("nicht (mehr) verfügbar")
+        }
+
+    @Test
+    fun `numeric error code deserializes without throwing`() {
+        val json = ProviderFactory.defaultJson()
+        // Vor dem Fix (code: String?) warf das eine SerializationException und der
+        // ganze Chunk (inkl. error) ging verloren -> stiller Verlust -> 204.
+        val chunk =
+            json.decodeFromString(
+                de.overlai.llm.transport.OpenAiStreamChunk.serializer(),
+                """{"error":{"message":"rate-limited upstream","code":429}}""",
+            )
+        assertThat(chunk.error).isNotNull()
+        assertThat(chunk.error?.message).isEqualTo("rate-limited upstream")
+    }
 }

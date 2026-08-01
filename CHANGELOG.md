@@ -53,6 +53,13 @@ Dieser Changelog wird ab dem ersten Release von `release-please` gepflegt.
   (`type:"error"`, z.B. `overloaded_error`).
 - **OpenRouter:** `HTTP-Referer`- und `X-Title`-Header werden mitgeschickt (von
   OpenRouter empfohlen; ohne sie werden v.a. kostenlose Modelle gedrosselt).
+- **OpenRouter `:free` meldete fälschlich „204 Leere Antwort" bei ALLEN Modellen.**
+  Das Fehler-JSON von OpenRouter/OpenAI liefert `code` oft als **Zahl** (`"code":404`),
+  unser DTO erwartete aber `String` → die Deserialisierung des Chunks kippte → der
+  In-Stream-Fehler wurde (erneut) verschluckt → irreführende 204. `OpenAiError.code`
+  ist jetzt `JsonElement` (frisst String **und** Zahl); die Meldung ist ehrlich —
+  z.B. „Modell nicht (mehr) verfügbar" (viele `:free`-Slugs sind bei OpenRouter
+  abgeschaltet) statt „ausgelastet".
 - **In-App-Updater: „Installieren" reagierte nicht.** `PackageInstaller.commit()`
   zeigt bei einer Sideload-App **nicht** direkt den Install-Dialog, sondern sendet
   zuerst `STATUS_PENDING_USER_ACTION` als Broadcast mit dem Dialog-Intent in
