@@ -6,6 +6,13 @@ Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1
 die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 Dieser Changelog wird ab dem ersten Release von `release-please` gepflegt.
 
+## [0.4.4](https://github.com/Labushuya/overlai/compare/v0.4.3...v0.4.4) (2026-08-01)
+
+
+### Bug Fixes
+
+* **catalog:** Kimi/Grok/Gemini live laden statt veralteter hartkodierter IDs ([8d58434](https://github.com/Labushuya/overlai/commit/8d58434553c9e88d41057d7cb1742d4ec615950e))
+
 ## [0.4.3](https://github.com/Labushuya/overlai/compare/v0.4.2...v0.4.3) (2026-08-01)
 
 
