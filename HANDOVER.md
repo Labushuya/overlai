@@ -25,6 +25,7 @@ Architektur: `feature-*` hängen nur an `core-*`, nie aneinander; Wiring/DI nur 
 - `:free`-Katalog: markierte tote Slugs als gratis (nur Suffix geprüft) → jetzt nach echtem Preis (`pricing==0`, fail-closed).
 - „Model not found" Kimi/Grok/Gemini: hartkodierte veraltete IDs → jetzt **Live-Katalog** (`/v1/models`, Gemini-Shim `/models`, `models/`-Präfix-Strip, Allow-Präfixe je Provider).
 - Reasoning-Modelle (Kimi k2-thinking, DeepSeek-R1) streamen Text in `reasoning_content`/`reasoning` statt `content` → jetzt gelesen; Leer-Meldung neutral (Provider+Modell, kein „kostenlos"-Bias).
+- **Anthropic hatte denselben latenten `stream`-Bug (nach dieser Session gefixt, noch nicht released):** `AnthropicRequest.stream = true` war ein Serialisierungs-Default ohne `@EncodeDefault(ALWAYS)` → fiel wegen `encodeDefaults=false` aus dem Body → Anthropic hätte non-streaming geantwortet → falsche „Leere Antwort". Fix analog OpenAiCompat + Regressionstest (`AnthropicProviderTest` prüft jetzt `"stream":true` im Body, wie der OpenAiCompat-Test). Der Unit-Test war grün, weil er nur die *Response* mockte, nie den *Request*-Body auf `stream` prüfte. Lokal verifiziert (`:core:core-llm:test`).
 
 ### Gelöste Bugs (Updater/Release)
 - In-App-Updater „Installieren" reagierte nicht: `PackageInstaller.commit()` zeigt den Dialog nicht direkt, sondern per `STATUS_PENDING_USER_ACTION`-Broadcast → es fehlte der Receiver. Fix: dynamischer `BroadcastReceiver` (`RECEIVER_NOT_EXPORTED`), startet `EXTRA_INTENT` (`FLAG_ACTIVITY_NEW_TASK`), meldet Erfolg/Fehler via StateFlow. **`EXTRA_INTENT` liegt auf `Intent`, nicht `PackageInstaller`** (CI-Compile-Falle).
@@ -40,7 +41,7 @@ Architektur: `feature-*` hängen nur an `core-*`, nie aneinander; Wiring/DI nur 
 
 ## 3. Offene Probleme / Ungeklärt
 
-- **Nutzer meldet „keine APK bereitgestellt" bei v0.5.0 — serverseitig aber vollständig verifiziert** (`gh release view v0.5.0`: `overlai-v0.5.0.apk`, 45.458.999 B, state `uploaded`, kein Draft, „Latest"; `latest.json` auf 0.5.0). **Diskrepanz ungeklärt.** Nächster Schritt: klären, ob der In-App-Update-Prüfer auf dem Gerät (läuft ggf. noch auf älterem Code) die APK nicht anzeigt, ob ein `latest.json`-Cache/CDN-Delay vorliegt, oder ob der Nutzer das GitHub-Release-Asset selbst meint. NICHT als gelöst behandeln.
+- ~~Nutzer meldet „keine APK bereitgestellt" bei v0.5.0~~ **ERLEDIGT (2026-08-01):** APK war vorhanden und wurde am Gerät getestet — funktional. Keine Diskrepanz, kein weiterer Handlungsbedarf.
 - **Kein Unit-Test für `ProviderHubViewModel`:** `SettingsStore` ist konkrete DataStore/Android-Klasse (kein Interface) → im JVM-Test nicht fakebar. Ein echter VM-Test erfordert ein `SettingsStore`-Interface-Refactoring (eigener Scope). Aktuell nur CI-Compile + Gerätetest. Katalog-Kernlogik ist durch `ModelCatalogTest` (core-llm) abgedeckt.
 - **13 offene Dependabot-PRs** (#1-14, u.a. AGP 8.7→9.3 #9, okhttp 4→5 #12/#14, Kotlin-Gruppe #7, ktlint 12→14 #13) — teils Major-Bumps mit Breaking-Changes, nicht abgearbeitet.
 - **Verifikations-Lücke Fallback-Modell-IDs:** `kimi-k2.6`/`grok-4.5`/`gemini-2.5-flash` sind Doku-abgeleitete Fallbacks, nicht gegen echte Konten verifiziert. Irrelevant solange der Live-Katalog lädt (dann kommen echte IDs), aber der Fallback greift bei Netz-/Auth-Fehlern.
@@ -50,8 +51,8 @@ Architektur: `feature-*` hängen nur an `core-*`, nie aneinander; Wiring/DI nur 
 ## 4. Roadmap (Reihenfolge zu klären mit Nutzer)
 
 **Sofort:**
-1. **v0.5.0-APK-Sichtbarkeit klären** (offener Punkt oben) — bevor Neues gebaut wird.
-2. **v0.5.0 Gerätetest:** Provider-Hub-Bedienung; Kimi läuft bereits; OpenRouter (echtes Modell) + DeepSeek mit `stream`-Fix gegenprüfen; Anthropic (eigener Adapter) separat.
+1. ~~v0.5.0-APK-Sichtbarkeit klären~~ **ERLEDIGT** — APK vorhanden, v0.5.0 am Gerät getestet, funktional.
+2. **v0.5.0 Gerätetest (Rest):** Provider-Hub läuft; Kimi ok. Offen zum Gegenprüfen: OpenRouter (echtes Modell) + DeepSeek mit `stream`-Fix; Anthropic (eigener Adapter) separat — **latenter `stream`-Bug ist inzwischen gefixt (s.o.), also erst nach dem nächsten Release testen, sonst greift der alte Code**.
 
 **Feinschliff (klein):**
 - „Alle Keys löschen" in Einstellungen (`KeyVault.clear()` existiert, kein Button).
