@@ -1,6 +1,6 @@
 # OverlAI — Session-Handover
 
-**Stand:** 2026-08-02 · **Letzter Release:** v0.6.1 (live; Overlay-Bubble mit funktionierendem Touch). **Offen:** M3.3-Robustheit in PR #28 (`feat/overlay-robustness`, CI-grün, NICHT gemergt — Gerätetest steht aus, Gerät war beim Bauen ab) · **Repo:** `Labushuya/overlai` (public) · **Lokal:** `C:\Code\claude\apps\overlai`
+**Stand:** 2026-08-02 · **Letzter Release:** v0.6.1 (live; Overlay-Bubble). **Phase 1 abgeschlossen; jetzt Phase 2 (Produktausbau) — siehe ROADMAP.md.** ⚠️ **M3.3-Robustheit (PR #28) ist am Gerät UNBRAUCHBAR** (kein Snapping, IME schiebt Panel kaputt, kein Papierkorb) → wird überarbeitet (P2.2), NICHT gemergt. · **Repo:** `Labushuya/overlai` (public) · **Lokal:** `C:\Code\claude\apps\overlai`
 
 Dieses Dokument ist der Übergabepunkt zwischen Sessions. Es beschreibt den **aktuellen Stand**, die **gelösten und offenen Probleme** und die **Roadmap**. Nach einer Kontextbereinigung hier ansetzen.
 
@@ -48,24 +48,19 @@ Architektur: `feature-*` hängen nur an `core-*`, nie aneinander; Wiring/DI nur 
 
 ---
 
-## 4. Roadmap (Reihenfolge zu klären mit Nutzer)
+## 4. Roadmap → siehe `ROADMAP.md` (Single Source of Truth)
 
-**Sofort:**
-1. ~~v0.5.0-APK-Sichtbarkeit klären~~ **ERLEDIGT** — APK vorhanden, v0.5.0 am Gerät getestet, funktional.
-2. ~~v0.5.0/v0.5.1 Gerätetest~~ **ERLEDIGT (2026-08-01):** Alle Provider **außer Grok** mit bezahltem API-Zugang am Gerät getestet — funktional (inkl. Anthropic mit dem v0.5.1-`stream`-Fix, OpenRouter, DeepSeek). Der `stream`-Fix hält über alle Adapter. **Offen: nur Grok** (xAI) noch ungetestet — Registry-Eintrag da (`baseUrl=https://api.x.ai`, `defaultModel=grok-4.5` = Doku-Fallback), aber ohne bezahltes Konto nicht verifiziert.
+Die vollständige, konsolidierte Roadmap steht in **`ROADMAP.md`** (Phase 1 abgeschlossen/released, Phase 2 Produktausbau, Phase 3 später). Kurzfassung des relevanten Stands:
 
-**Feinschliff (klein):**
-- „Alle Keys löschen" in Einstellungen (`KeyVault.clear()` existiert, kein Button).
-- Suchfeld in langen Modelllisten (der alte Katalog hatte Suche; im neuen Hub bewusst weggelassen — bei Bedarf nachrüsten).
-- Dependabot-PRs abarbeiten (Major-Bumps einzeln + CI prüfen).
+**Phase 1 erledigt & released (v0.6.1):** M0 (Pipeline/CI/Signing), M1 (core-llm/BYOK/Chat), M2 (ProcessText/Share/OCR), M3.1+M3.2 (Overlay-Bubble + Panel-Chat), M3-Touch-Fix, M5 (Anthropic + Config-Provider + Live-Katalog), Provider-Bugfix-Serie.
 
-**M3: Overlay-Bubble** (`SYSTEM_ALERT_WINDOW`) — **RELEASED in v0.6.0 (PR #24 + #25 gemergt, live, verifiziert).** Modul `:feature:feature-overlay`:
-  - **M3.1 Plattform-Mechanik:** `OverlayService` (Foreground, `foregroundServiceType=specialUse`, NotificationChannel, `START_NOT_STICKY`, `canDrawOverlays`-Guard), `OverlayWindowController` (Bubble + Panel als `TYPE_APPLICATION_OVERLAY`, Drag/Tap per Touch-Slop), `OverlayLifecycleOwner` (ViewTree-Owner für ComposeView ohne Activity, siehe Memory), Permission-Hub-Item + Toggle (`SettingsStore.overlayEnabled` + `OverlaySettingsScreen`, in `:app` verdrahtet).
-  - **M3.2 Chat im Panel:** `OverlayDependencies` (Hilt-`@EntryPoint`) liefert die `ConversationEngine` in den Service; `OverlayChatState` (State-Holder, kein ViewModel, vom Service gehalten → überdauert Panel-Auf/Zu) hält die `SnapshotStateList<UiMessage>` und streamt `engine.stream()`; `OverlayPanel` = echter Mini-Chat (Verlauf + Eingabe + Streaming). Panel-LayoutParams jetzt fokussierbar (Texteingabe), `WATCH_OUTSIDE_TOUCH` schließt.
-- **v0.6.1 (Touch-Fix, am Gerät verifiziert):** In v0.6.0 war die Bubble sichtbar, reagierte aber auf NICHTS. Zwei Ursachen, nacheinander gefunden (per adb-Logcat + WindowManager-Dump, nicht geraten): (1) **Honor/EMUI blockiert Overlays zusätzlich über ein verstecktes „Schwebefenster"-Recht** (App-Info) — trotz erteilter `SYSTEM_ALERT_WINDOW` bleibt das Overlay sonst unsichtbar. (2) **Der `ComposeView` konsumiert `ACTION_DOWN` selbst** → ein `View.OnTouchListener` am Fenster-Root feuert per Android-Dispatch-Kontrakt NIE. Fix: Touch/Drag/Tap in Compose via `Modifier.pointerInput` (`detectTapGestures`+`detectDragGestures`) in `OverlayBubble`, Deltas per Callback an den Controller. Zusätzlich robuster gemacht: `OverlayLifecycleOwner` in zwei Phasen (CREATED vor `addView`, RESUMED danach) + `setViewCompositionStrategy(DisposeOnLifecycleDestroyed)`, feste Bubble-Fenstergröße statt WRAP_CONTENT, Service-Auto-Restart in `MainActivity` bei `overlayEnabled`.
-- **OFFEN: v0.6.1-Gerätetest Rest** — Bubble-Tap+Drag ok; noch prüfen: Panel-Chat mit echtem Key (streamt eine Antwort über der Fremd-App?), Verhalten über mehreren Apps, Toggle-aus → alles weg, App-Neustart → Bubble kommt via Auto-Restart wieder.
-- **M3.3 Robustheit — CODE FERTIG, CI-grün, in PR #28 (`feat/overlay-robustness`), NICHT gemergt, GERÄTETEST STEHT AUS** (Gerät war beim Bauen ab). Sechs Punkte: (1) Bubble-Clamping + Rand-Snapping (nicht mehr verlierbar, `onDragEnd`→`snapToEdge`), (2) Panel-Position an Bubble-Seite + `SOFT_INPUT_ADJUST_PAN` gegen IME-Verdeckung, (3) Rotation via `OverlayService.onConfigurationChanged`→`Controller.onConfigChanged`, (4) Toggle-Konsistenz: Service setzt `setOverlayEnabled(false)` bei Permission-Verlust (via `OverlayDependencies.settingsStore()`), (5) Konversations-Reset (`reset()` + Papierkorb-Icon), (6) Stream-Cancel (`streamJob` + `cancelStream()`, Senden↔Stopp-Button). `feature-overlay` hängt jetzt auch an `:core-data`. **Nächster Schritt: Gerätetest** (5 Checks: Snapping, IME, Rotation, Toggle-nach-Permission-Entzug, Reset+Cancel) → dann Merge + Release (Reset+Cancel sind Features → v0.7.0), **nur nach Freigabe**.
-- Danach M4 (AccessibilityService/MediaProjection Screen-Read), M5 ist erledigt (Anthropic-Adapter existiert), M6 (Web-Search-Router + Transcription).
+**M3-Touch-Fix (v0.6.1, am Gerät verifiziert):** Bubble war sichtbar aber tot. Zwei Ursachen (per adb gefunden): (1) Honor/EMUI verlangt zusätzlich ein verstecktes „Schwebefenster"-Recht (App-Info), sonst Overlay unsichtbar trotz `SYSTEM_ALERT_WINDOW`. (2) `ComposeView` konsumiert `ACTION_DOWN` selbst → `View.OnTouchListener` am Root feuert nie → Touch in Compose via `Modifier.pointerInput`.
+
+**⚠️ M3.3-Robustheit (Branch `feat/overlay-robustness`, PR #28) — am Gerät UNBRAUCHBAR:** Snapping greift nicht, IME schiebt das Panel kaputt, kein Papierkorb-Schließen. **NICHT mergen.** Wird in **P2.2** von Grund auf überarbeitet (Android-Standard-Snapping + Papierkorb mittig-unten + feste Panel-Größe). Code auf dem Branch dient nur als Referenz/Ausgangspunkt.
+
+**Phase 2 (aktuell) — Reihenfolge in ROADMAP.md:** P2.0 Doku (dieser Schritt) · P2.1 Chat-Kern vereinheitlichen + Multi-Chat-Sessions (Fundament, verhindert Doppel-Refactoring) · P2.2 Bubble-Snapping/Papierkorb (überarbeitet) · P2.3 Logo/Marke (Konzepte vorschlagen, Name OverlAI bleibt) · P2.4 vier Entry-Points (Overlay=Kern, +Fullscreen/Notification/Share, alle → selber Chat-Kern) · P2.5 UI-Redesign (Multi-Chat, Modellanzeige, Kontingente) · P2.6 Updater wie Wickelfinder (GitHub-Releases-API + SemVer, nativen PackageInstaller behalten) · P2.7 Politur + Dependabot + Grok-Test.
+
+**Phase 3 (später):** M4 (AccessibilityService/MediaProjection Screen-Read — KI „sieht" die App), M6 (Web-Search-Router + Transcription).
 
 ---
 
