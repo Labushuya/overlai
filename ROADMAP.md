@@ -57,10 +57,16 @@ So gebaut, dass das folgende UI-Redesign sie nicht erneut anfassen muss:
 - **IME:** setzt Snapping/feste Größe voraus — Panel klappt vollständig sichtbar auf.
 - **Rotation:** vertikale Anordnung auf horizontal „mappen" mit Fallbacks.
 
-### P2.3 — Logo & Marke `geplant`
-Aktuell nur ein Material-Chat-Icon, **nie abgestimmt**. Ich lege nichts allein fest:
-2–3 Konzepte (Farbwelt, Symbol, Stil) zur Auswahl → dann Adaptive-Icon + Bubble-Icon +
-Splash. Name **„OverlAI" bleibt**.
+### P2.3 — Logo & Marke `Design entschieden, Umsetzung mit P2.5 gebündelt`
+Ersetzt das alte, nie abgestimmte Material-Chat-Icon. **Entschieden (2026-08-02):** Konzept
+**„D4"** — Monogramm-**O** (Gold-Ring = O/App-Ebene) + schwebender Paper-Punkt mit Gold-Funke
+(KI liegt *über* der App = Overlay). Palette: Gold `#D0BB3E`, Slate `#485956`, Paper `#EBEFEE`
+(Figma-Generator). Responsive: volle Version mit Funke (Icon/Splash), reduziert ohne Funke
+(kleine Bubble). Referenz: `brand/logo-concept-D-variants.png`, `brand/logo-D4-size-test.png`;
+Details in Memory `overlai-logo-design`. Name **„OverlAI" bleibt**.
+**Asset-Umsetzung** (Adaptive-Icon-Vektor foreground/background, Bubble in `OverlayBubble.kt`
+statt Material-Icon, Splash, Theme-Palette angleichen) **bewusst in P2.5 gebündelt** — dort wird
+das Theme ohnehin angefasst, kein doppeltes Refactoring.
 
 ### P2.4 — Vier Entry-Points (alle → selber Chat-Kern) `geplant`
 - **(a) Overlay-Bubble** — vorhanden (P2.2).
@@ -80,6 +86,9 @@ Intuitiv & professionell nach gängigen Standards (Material 3, mehr als 2 Bottom
   Provider prüfen; Fallback: Hinweis statt Fehlanzeige).
 - **Klares Verhalten + Hinweise** (z. B. „mit weiterer Nutzung entstehen Kosten").
 - Alles Nötige aus der App heraus (Keys, Modelle, Kontingente, Verhalten).
+- **Logo-Assets (aus P2.3) hier mit umsetzen:** Adaptive-Icon (Vektor), Bubble in
+  `OverlayBubble.kt`, Splash, Theme-Palette auf Gold/Slate/Paper umstellen — Theme wird
+  hier ohnehin angefasst.
 
 ### P2.6 — Updater/Installer wie Wickelfinder `geplant`
 Vorbild: `Labushuya/wickelfinder`. Übernehmen:
