@@ -165,11 +165,7 @@ private fun ChatRoute(
         viewModel<ChatViewModel>(
             factory =
                 simpleFactory {
-                    ChatViewModel(
-                        providerFactory = deps.providerFactory,
-                        keyVault = deps.keyVault,
-                        settingsStore = deps.settingsStore,
-                    )
+                    ChatViewModel(engine = deps.conversationEngine)
                 },
         )
     // First-run: einmalig ins Provider-Setup routen, wenn noch kein Key +

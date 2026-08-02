@@ -1,25 +1,17 @@
 package de.overlai.feature.chat
 
-import de.overlai.llm.ChatMessage
-import de.overlai.llm.Role
+import de.overlai.conversation.ChatUiMessage
 
-// CHANGE-MARKER v0.1.0: Chat-UI (siehe CHANGELOG.md)
-// UI-State des Chat-Screens. Getrennt vom LLM-Domänentyp, damit die UI eigene
-// Belange (Streaming-Flag, Fehler) modellieren kann.
+// CHANGE-MARKER: Chat-Kern vereinheitlicht (P2.1a, siehe CHANGELOG.md)
+// UI-State des Chat-Screens. `messages` nutzt jetzt das gemeinsame ChatUiMessage
+// (core-conversation), das alle Oberflächen teilen — die frühere eigene UiMessage-
+// Klasse (strukturgleich) ist entfallen. Streaming/Verlauf kommen aus der
+// ConversationSession; hier bleiben nur die screen-spezifischen Felder.
 data class ChatUiState(
-    val messages: List<UiMessage> = emptyList(),
+    val messages: List<ChatUiMessage> = emptyList(),
     val input: String = "",
     val isStreaming: Boolean = false,
     val error: String? = null,
     val providerName: String = "",
     val hasApiKey: Boolean = true,
 )
-
-data class UiMessage(
-    val role: Role,
-    val text: String,
-    // Während des Streamens wächst der Assistant-Text inkrementell.
-    val streaming: Boolean = false,
-) {
-    fun toDomain(): ChatMessage = ChatMessage(role = role, content = text)
-}

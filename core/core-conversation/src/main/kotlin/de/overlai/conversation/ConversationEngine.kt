@@ -21,7 +21,7 @@ class ConversationEngine(
     private val providerFactory: ProviderFactory,
     private val keyVault: KeyVault,
     private val settingsStore: SettingsStore,
-) {
+) : ConversationSession.Streamer {
     // Ergebnis eines Stream-Schritts für die UI.
     sealed interface Event {
         data class Delta(
@@ -42,9 +42,15 @@ class ConversationEngine(
 
     suspend fun hasKeyForActive(): Boolean = keyVault.hasKey(activeConfig().id)
 
+    // ConversationSession.Streamer — dünne Delegation, damit die Session provider-agnostisch
+    // an der Engine hängt (statt SettingsStore/KeyVault selbst zu kennen).
+    override suspend fun providerDisplayName(): String = activeConfig().displayName
+
+    override suspend fun hasKey(): Boolean = hasKeyForActive()
+
     // Streamt eine Konversation mit dem aktiven Provider. Löst Provider + Key auf,
     // mappt Fehler auf lesbare Meldungen. Emittiert Delta*/Done/Failed.
-    fun stream(messages: List<ChatMessage>): Flow<Event> =
+    override fun stream(messages: List<ChatMessage>): Flow<Event> =
         flow {
             val config = activeConfig()
             val apiKey = keyVault.getKey(config.id)

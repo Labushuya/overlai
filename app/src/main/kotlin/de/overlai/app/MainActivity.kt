@@ -28,6 +28,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import dagger.hilt.android.AndroidEntryPoint
 import de.overlai.common.ThemePreferences
+import de.overlai.conversation.ConversationEngine
 import de.overlai.core.data.SettingsStore
 import de.overlai.core.ui.theme.OverlAiTheme
 import de.overlai.feature.overlay.OverlayService
@@ -62,6 +63,8 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var packageInstaller: PackageInstallerSession
 
     @Inject lateinit var modelCatalog: HttpModelCatalog
+
+    @Inject lateinit var conversationEngine: ConversationEngine
 
     // Vor dem ersten Frame gesetzt; Splash hält, solange null.
     private val themeState = MutableStateFlow<ThemePreferences?>(null)
@@ -102,6 +105,7 @@ class MainActivity : ComponentActivity() {
                         apkDownloader = apkDownloader,
                         packageInstaller = packageInstaller,
                         modelCatalog = modelCatalog,
+                        conversationEngine = conversationEngine,
                         versionName = versionName(),
                     ),
             )
@@ -123,6 +127,7 @@ class AppDependencies(
     val apkDownloader: ApkDownloader,
     val packageInstaller: PackageInstallerSession,
     val modelCatalog: HttpModelCatalog,
+    val conversationEngine: ConversationEngine,
     val versionName: String,
 )
 

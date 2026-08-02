@@ -30,18 +30,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import de.overlai.conversation.ChatUiMessage
 import de.overlai.core.ui.theme.OverlAiTheme
 import de.overlai.llm.Role
 
-// CHANGE-MARKER v0.5.2: Overlay-Bubble Chat (M3.2, siehe CHANGELOG.md)
-// Das aufgeklappte Panel: ein kompakter Chat über anderen Apps. Nutzt den vom Service
-// gehaltenen OverlayChatState (überdauert das Auf-/Zuklappen) und die ConversationEngine
-// dahinter. Bewusst schmal gehalten — es schwebt über der Fremd-App, kein Vollbild-Chat.
+// CHANGE-MARKER: Chat-Kern vereinheitlicht (P2.1a, siehe CHANGELOG.md)
+// Das aufgeklappte Panel: kompakter Chat über anderen Apps. Liest jetzt den State der
+// gemeinsamen ConversationSession (via OverlayChatState.state) — dasselbe ChatUiMessage-
+// Modell wie der Fullscreen-Chat. Keine eigene Nachrichtenliste mehr.
 @Composable
 internal fun OverlayPanel(
     chat: OverlayChatState,
     onClose: () -> Unit,
 ) {
+    val s by chat.state.collectAsStateWithLifecycle()
     OverlAiTheme {
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -59,32 +62,30 @@ internal fun OverlayPanel(
                     }
                 }
 
-                MessageList(chat)
-                Composer(chat)
+                MessageList(s.messages)
+                Composer(streaming = s.isStreaming, onSend = { chat.send(it) })
             }
         }
     }
 }
 
 @Composable
-private fun MessageList(chat: OverlayChatState) {
+private fun MessageList(messages: List<ChatUiMessage>) {
     val listState = rememberLazyListState()
-    // Bei neuer Nachricht/Delta ans Ende scrollen.
-    LaunchedEffect(chat.messages.size, chat.messages.lastOrNull()?.text) {
-        if (chat.messages.isNotEmpty()) listState.animateScrollToItem(chat.messages.lastIndex)
+    LaunchedEffect(messages.size, messages.lastOrNull()?.text) {
+        if (messages.isNotEmpty()) listState.animateScrollToItem(messages.lastIndex)
     }
     LazyColumn(
         state = listState,
         verticalArrangement = Arrangement.spacedBy(6.dp),
-        // heightIn: das Panel wächst mit dem Verlauf, bleibt aber gedeckelt (Overlay).
         modifier = Modifier.fillMaxWidth().heightIn(min = 0.dp, max = 280.dp).padding(vertical = 8.dp),
     ) {
-        items(chat.messages) { msg -> MessageBubble(msg) }
+        items(messages) { msg -> MessageBubble(msg) }
     }
 }
 
 @Composable
-private fun MessageBubble(msg: OverlayChatState.UiMessage) {
+private fun MessageBubble(msg: ChatUiMessage) {
     val isUser = msg.role == Role.USER
     val bubbleColor =
         if (isUser) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
@@ -107,12 +108,14 @@ private fun MessageBubble(msg: OverlayChatState.UiMessage) {
 }
 
 @Composable
-private fun Composer(chat: OverlayChatState) {
+private fun Composer(
+    streaming: Boolean,
+    onSend: (String) -> Unit,
+) {
     var input by remember { mutableStateOf("") }
-    val streaming by chat.isStreaming
 
     fun submit() {
-        chat.send(input)
+        onSend(input)
         input = ""
     }
 

@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import de.overlai.conversation.ChatUiMessage
 import de.overlai.llm.Role
 
 // CHANGE-MARKER v0.1.0: Chat-UI (siehe CHANGELOG.md)
@@ -77,7 +78,7 @@ fun ChatScreen(
 }
 
 @Composable
-private fun MessageBubble(msg: UiMessage) {
+private fun MessageBubble(msg: ChatUiMessage) {
     val isUser = msg.role == Role.USER
     Row(
         modifier = Modifier.fillMaxWidth(),
