@@ -1,6 +1,10 @@
 # OverlAI — Session-Handover
 
-**Stand:** 2026-08-02 · **Letzter Release:** v0.6.1 (live; Overlay-Bubble). **Phase 1 abgeschlossen; jetzt Phase 2 (Produktausbau) — siehe ROADMAP.md.** ⚠️ **M3.3-Robustheit (PR #28) ist am Gerät UNBRAUCHBAR** (kein Snapping, IME schiebt Panel kaputt, kein Papierkorb) → wird überarbeitet (P2.2), NICHT gemergt. · **Repo:** `Labushuya/overlai` (public) · **Lokal:** `C:\Code\claude\apps\overlai`
+**Stand:** 2026-08-02 · **Letzter Release:** v0.6.1 (live; Overlay-Bubble). **Phase 1 abgeschlossen; Phase 2 (Produktausbau) läuft — siehe ROADMAP.md.**
+- **P2.1a fertig, CI-grün, in PR #29 (`feat/unify-chat-core`), NICHT gemergt** — Chat-Kern vereinheitlicht (ConversationSession); am Gerät verifiziert (reines Refactoring, Verhalten identisch). Merge nach Freigabe.
+- ⚠️ **PR #28 (M3.3-Robustheit) VERWERFEN, nicht mergen** — am Gerät unbrauchbar (kein Snapping/IME/Papierkorb) UND überschneidet sich mit PR #29 in `feature-overlay`. Gute Ideen fließen neu in P2.2 ein.
+
+Repo: `Labushuya/overlai` (public) · Lokal: `C:\Code\claude\apps\overlai`
 
 Dieses Dokument ist der Übergabepunkt zwischen Sessions. Es beschreibt den **aktuellen Stand**, die **gelösten und offenen Probleme** und die **Roadmap**. Nach einer Kontextbereinigung hier ansetzen.
 

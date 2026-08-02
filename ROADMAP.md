@@ -35,20 +35,27 @@ Reihenfolge bewusst so gewählt, dass **kein Doppel-Refactoring** entsteht: erst
 Diese Roadmap + HANDOVER an den echten Stand angleichen; Widersprüche raus (ROADMAP-Status
 war komplett veraltet; M3.3 war fälschlich als „fertig" markiert, obwohl am Gerät kaputt).
 
-### P2.1 — Chat-Kern vereinheitlichen (Fundament, KEIN sichtbares Feature) `geplant`
-**Warum zuerst:** Es gibt zwei parallele Chat-Codepfade — `feature-chat/ChatViewModel`
-(direkt über `ProviderFactory`) und der Overlay über `core-conversation/ConversationEngine`.
-Für „ein Chat, vier Zugänge" muss **`ConversationEngine` die einzige Streaming-Quelle für
-alle Oberflächen** werden. Außerdem: Session-Modell für **Multi-Chat** einführen (mehrere
-Konversationen, je mit eigenem Provider/Modell) — heute existiert nur eine implizite Session.
-- `feature-chat` auf `ConversationEngine` umstellen (ChatViewModel entschlacken).
-- Session-/Konversations-Store in `core-conversation` (Liste von Chats, aktive Auswahl,
-  je Chat: Provider+Modell+Verlauf). Persistenz (Room o.ä.) — Verläufe überleben Neustart.
+### P2.1a — Chat-Kern vereinheitlichen `erledigt (PR #29, CI-grün, Merge offen)`
+Die drei parallelen Chat-Implementierungen (ChatViewModel, OverlayChatState, Engine) sind
+zu **einem** Kern vereinheitlicht: `ConversationSession` (zustandsbehaftet) über der
+zustandslosen `ConversationEngine`, gemeinsames `ChatUiMessage`-Modell, erstes Unit-Test-Netz
+für den Chat-Kern. feature-chat + Overlay sind dünne Adapter. Am Gerät als Verhaltensgleich
+verifiziert. **Noch im Speicher** (keine Persistenz).
+
+### P2.1b — Room-Persistenz + echtes Multi-Chat `geplant`
+Baut direkt auf `ConversationSession` auf. Room ist in `:core-data` bereits verdrahtet
+(Deps+ksp+Hilt, ungenutzt — Kommentar „Room für Chat-Historie"):
+- `ChatSessionEntity` (id, title, providerId, modelId, timestamps) + `ChatMessageEntity`
+  (FK sessionId, role, content) + DAOs + `OverlaiDatabase` + `SessionRepository` in `:core-data`.
+- `active_session_id` als neuer SettingsStore-Preferences-Key.
+- Provider/Modell **pro Session** (statt nur global) — `ConversationEngine.stream()` hat dafür
+  schon die additive Überladung. Verläufe überleben Neustart.
 - Ziel: Overlay, Fullscreen, Notification, Share greifen alle auf denselben Session-Store.
 
 ### P2.2 — Bubble-Snapping & -Verhalten (refactoring-fest) `geplant`
-Die aktuelle M3.3-Umsetzung (PR #28) ist am Gerät **unbrauchbar** (kein Snapping, IME
-schiebt Panel kaputt, kein Papierkorb) und wird **überarbeitet, nicht nur gemergt**.
+Die alte M3.3-Umsetzung (PR #28) ist am Gerät **unbrauchbar** (kein Snapping, IME schiebt
+Panel kaputt, kein Papierkorb) UND überschneidet sich mit PR #29 (P2.1a) in `feature-overlay`.
+**PR #28 verwerfen**, hier von Grund auf neu bauen (auf Basis des vereinheitlichten Kerns):
 So gebaut, dass das folgende UI-Redesign sie nicht erneut anfassen muss:
 - **Snapping wie Android-Standard** (Messenger/HONOR): Bubble klebt an der Kante, animiert.
 - **Papierkorb zum Schließen:** beim Drag erscheint mittig-unten eine Schließzone; Bubble
