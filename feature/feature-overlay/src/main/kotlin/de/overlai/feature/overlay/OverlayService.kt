@@ -7,6 +7,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.content.res.Configuration
 import android.os.Build
 import android.os.IBinder
 import android.provider.Settings
@@ -66,7 +67,13 @@ class OverlayService : Service() {
 
     private fun startBubble() {
         startForegroundNotification()
-        val ctrl = controller ?: OverlayWindowController(this, chatState).also { controller = it }
+        val ctrl =
+            controller ?: OverlayWindowController(
+                context = this,
+                chatState = chatState,
+                // Bubble auf Papierkorb gezogen → Overlay beenden (wie Toggle „aus").
+                onRequestStop = { stop(this) },
+            ).also { controller = it }
         ctrl.showBubble()
     }
 
@@ -101,6 +108,12 @@ class OverlayService : Service() {
                 setShowBadge(false)
             }
         manager.createNotificationChannel(channel)
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // Rotation/Größenänderung: Bubble neu clampen/snappen, offenes Panel neu vermessen.
+        controller?.onConfigChanged()
     }
 
     override fun onDestroy() {
