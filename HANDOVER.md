@@ -1,8 +1,9 @@
 # OverlAI — Session-Handover
 
 **Stand:** 2026-08-02 · **Letzter Release:** v0.6.1 (live; Overlay-Bubble). **Phase 1 abgeschlossen; Phase 2 (Produktausbau) läuft — siehe ROADMAP.md.**
-- **P2.1a fertig, CI-grün, in PR #29 (`feat/unify-chat-core`), NICHT gemergt** — Chat-Kern vereinheitlicht (ConversationSession); am Gerät verifiziert (reines Refactoring, Verhalten identisch). Merge nach Freigabe.
-- ⚠️ **PR #28 (M3.3-Robustheit) VERWERFEN, nicht mergen** — am Gerät unbrauchbar (kein Snapping/IME/Papierkorb) UND überschneidet sich mit PR #29 in `feature-overlay`. Gute Ideen fließen neu in P2.2 ein.
+- **P2.1a gemergt** (PR #29, `main`): Chat-Kern vereinheitlicht (ConversationSession) — Fundament für Multi-Chat/Entry-Points. Am Gerät verhaltensgleich verifiziert. **Nicht released** (nur main; Verhalten für Nutzer unverändert).
+- **PR #28 (M3.3-Robustheit) geschlossen/verworfen** — war am Gerät unbrauchbar; Snapping/Papierkorb kommen in P2.2 neu (auf Basis des vereinheitlichten Kerns).
+- Offen nur noch Dependabot-/CI-Bump-PRs (→ P2.7).
 
 Repo: `Labushuya/overlai` (public) · Lokal: `C:\Code\claude\apps\overlai`
 
