@@ -11,6 +11,9 @@ dependencies {
     // M3.2: Chat im Panel — Engine + Domain-Typen (ChatMessage/Role) wiederverwenden.
     implementation(project(":core:core-conversation"))
     implementation(project(":core:core-llm"))
+    // M3.3: SettingsStore für overlayEnabled-Konsistenz (Service setzt bei
+    // Permission-Verlust den Toggle zurück).
+    implementation(project(":core:core-data"))
     // savedstate: SavedStateRegistryOwner für ComposeView im WindowManager-Overlay
     // (Compose außerhalb einer Activity braucht die ViewTree-Owner explizit).
     implementation(libs.androidx.savedstate)

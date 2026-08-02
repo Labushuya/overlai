@@ -7,6 +7,7 @@ import de.overlai.conversation.ConversationEngine
 import de.overlai.llm.ChatMessage
 import de.overlai.llm.Role
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onEach
@@ -34,6 +35,9 @@ internal class OverlayChatState(
     val messages: SnapshotStateList<UiMessage> = mutableStateListOf()
     val isStreaming = mutableStateOf(false)
 
+    // Der laufende Stream-Job — damit er per cancelStream() abgebrochen werden kann.
+    private var streamJob: Job? = null
+
     // Nutzer-Nachricht senden + Antwort streamen. No-Op während bereits gestreamt wird
     // oder bei leerer Eingabe.
     fun send(input: String) {
@@ -53,26 +57,42 @@ internal class OverlayChatState(
                 .map { ChatMessage(it.role, it.text) }
 
         val builder = StringBuilder()
-        engine
-            .stream(history)
-            .onEach { event ->
-                when (event) {
-                    is ConversationEngine.Event.Delta -> {
-                        builder.append(event.text)
-                        updateLastAssistant(builder.toString(), streaming = true)
+        streamJob =
+            engine
+                .stream(history)
+                .onEach { event ->
+                    when (event) {
+                        is ConversationEngine.Event.Delta -> {
+                            builder.append(event.text)
+                            updateLastAssistant(builder.toString(), streaming = true)
+                        }
+                        ConversationEngine.Event.Done -> Unit // Abschluss via onCompletion
+                        is ConversationEngine.Event.Failed ->
+                            updateLastAssistant(event.message, streaming = false)
                     }
-                    ConversationEngine.Event.Done -> Unit // Abschluss via onCompletion
-                    is ConversationEngine.Event.Failed ->
-                        updateLastAssistant(event.message, streaming = false)
-                }
-            }.onCompletion {
-                // Streaming-Flag der letzten Assistant-Bubble löschen (Erfolg wie Fehler).
-                val last = messages.lastOrNull()
-                if (last != null && last.role == Role.ASSISTANT && last.streaming) {
-                    updateLastAssistant(last.text, streaming = false)
-                }
-                isStreaming.value = false
-            }.launchIn(scope)
+                }.onCompletion {
+                    // Streaming-Flag der letzten Assistant-Bubble löschen (Erfolg wie Fehler
+                    // wie Abbruch). Bei Abbruch mit leerem Text einen Hinweis setzen.
+                    val last = messages.lastOrNull()
+                    if (last != null && last.role == Role.ASSISTANT && last.streaming) {
+                        val shown = last.text.ifEmpty { "(abgebrochen)" }
+                        updateLastAssistant(shown, streaming = false)
+                    }
+                    isStreaming.value = false
+                }.launchIn(scope)
+    }
+
+    // Laufenden Stream abbrechen (Stopp-Button). onCompletion räumt das Streaming-Flag ab.
+    fun cancelStream() {
+        streamJob?.cancel()
+    }
+
+    // Verlauf leeren + laufenden Stream stoppen (Reset-Button). Setzt die Konversation
+    // zurück — auch damit die an die Engine gereichte History nicht unbegrenzt wächst.
+    fun reset() {
+        streamJob?.cancel()
+        messages.clear()
+        isStreaming.value = false
     }
 
     private fun updateLastAssistant(

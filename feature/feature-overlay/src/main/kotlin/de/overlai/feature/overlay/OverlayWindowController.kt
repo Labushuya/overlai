@@ -62,7 +62,8 @@ internal class OverlayWindowController(
             ).apply {
                 gravity = Gravity.TOP or Gravity.START
                 x = 0
-                y = 200
+                // y unter der Statusbar starten (statt fixem Rohpixel-Wert).
+                y = statusBarHeight() + dpToPx(8f)
             }
         bubbleParams = params
 
@@ -73,12 +74,15 @@ internal class OverlayWindowController(
                 setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnLifecycleDestroyed(owner))
                 setContent {
                     OverlayBubble(
-                        // Drag verschiebt das Overlay-Fenster (delta-basiert aus Compose).
+                        // Drag verschiebt das Overlay-Fenster (delta-basiert aus Compose),
+                        // geclampt auf den sichtbaren Bereich → nicht mehr verlierbar.
                         onDrag = { dx, dy ->
-                            bubbleParams.x += dx
-                            bubbleParams.y += dy
+                            bubbleParams.x = clampX(bubbleParams.x + dx)
+                            bubbleParams.y = clampY(bubbleParams.y + dy)
                             bubbleView?.let { windowManager.updateViewLayout(it, bubbleParams) }
                         },
+                        // Loslassen: an den nächsten horizontalen Rand snappen.
+                        onDragEnd = { snapToEdge() },
                         onTap = { togglePanel() },
                     )
                 }
@@ -103,9 +107,23 @@ internal class OverlayWindowController(
     private fun showPanel() {
         if (panelView != null) return
 
+        val panelWidth = (screenWidth() * 0.86f).toInt()
+        // Panel an der Bubble-Seite ausrichten: Bubble links → Panel links, sonst rechts.
+        val bubbleOnRight =
+            ::bubbleParams.isInitialized && bubbleParams.x + dpToPx(BUBBLE_SIZE_DP) / 2 >= screenWidth() / 2
+        val panelX = if (bubbleOnRight) (screenWidth() - panelWidth).coerceAtLeast(0) else 0
+        // Panel-y nahe der Bubble, aber so, dass es (grob geschätzte Höhe) on-screen bleibt.
+        val rawY = if (::bubbleParams.isInitialized) bubbleParams.y + dpToPx(BUBBLE_SIZE_DP) + dpToPx(8f) else 360
+        val estPanelHeight = dpToPx(360f) // Deckelung: Liste max 280dp + Header/Composer
+        val panelY =
+            rawY.coerceIn(
+                statusBarHeight(),
+                (screenHeight() - estPanelHeight).coerceAtLeast(statusBarHeight()),
+            )
+
         val params =
             WindowManager.LayoutParams(
-                (context.resources.displayMetrics.widthPixels * 0.86f).toInt(),
+                panelWidth,
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 overlayType,
                 // Das Panel MUSS fokussierbar sein (Texteingabe/IME) — daher KEIN
@@ -115,8 +133,11 @@ internal class OverlayWindowController(
                 PixelFormat.TRANSLUCENT,
             ).apply {
                 gravity = Gravity.TOP or Gravity.START
-                x = 0
-                y = if (::bubbleParams.isInitialized) bubbleParams.y + 160 else 360
+                x = panelX
+                y = panelY
+                // Tastatur soll das fokussierte Eingabefeld nicht verdecken: das Fenster
+                // wird bei sichtbarer IME nach oben geschoben statt überdeckt.
+                softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN
             }
 
         val owner = OverlayLifecycleOwner()
@@ -169,6 +190,45 @@ internal class OverlayWindowController(
         TypedValue
             .applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp, context.resources.displayMetrics)
             .toInt()
+
+    // --- Positionierung / Robustheit ---
+
+    private fun screenWidth(): Int = context.resources.displayMetrics.widthPixels
+
+    private fun screenHeight(): Int = context.resources.displayMetrics.heightPixels
+
+    private fun statusBarHeight(): Int {
+        val id = context.resources.getIdentifier("status_bar_height", "dimen", "android")
+        return if (id > 0) context.resources.getDimensionPixelSize(id) else dpToPx(24f)
+    }
+
+    // Bubble-x im sichtbaren Bereich halten (0 .. Bildschirmbreite - Bubble).
+    private fun clampX(x: Int): Int = x.coerceIn(0, (screenWidth() - dpToPx(BUBBLE_SIZE_DP)).coerceAtLeast(0))
+
+    // Bubble-y zwischen Statusbar und unterem Rand halten.
+    private fun clampY(y: Int): Int =
+        y.coerceIn(statusBarHeight(), (screenHeight() - dpToPx(BUBBLE_SIZE_DP)).coerceAtLeast(statusBarHeight()))
+
+    // Beim Loslassen an den näheren horizontalen Rand ziehen (links oder rechts).
+    private fun snapToEdge() {
+        if (!::bubbleParams.isInitialized) return
+        val maxX = (screenWidth() - dpToPx(BUBBLE_SIZE_DP)).coerceAtLeast(0)
+        bubbleParams.x = if (bubbleParams.x + dpToPx(BUBBLE_SIZE_DP) / 2 < screenWidth() / 2) 0 else maxX
+        bubbleParams.y = clampY(bubbleParams.y)
+        bubbleView?.let { windowManager.updateViewLayout(it, bubbleParams) }
+    }
+
+    // Konfig-Änderung (v.a. Rotation): Bubble neu clampen + offenes Panel neu vermessen.
+    fun onConfigChanged() {
+        if (::bubbleParams.isInitialized) {
+            snapToEdge() // clampt y + zieht x an den passenden Rand, aktualisiert das View
+        }
+        // Offenes Panel neu aufbauen, damit Breite/Position zur neuen Orientierung passen.
+        if (panelView != null) {
+            removePanel()
+            showPanel()
+        }
+    }
 
     private companion object {
         // Feste Bubble-Kantenlänge in dp (muss zur BubbleSize in OverlayBubble.kt passen).

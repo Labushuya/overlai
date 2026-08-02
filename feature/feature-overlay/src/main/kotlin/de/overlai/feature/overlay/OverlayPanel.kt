@@ -12,6 +12,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -54,8 +56,14 @@ internal fun OverlayPanel(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text("OverlAI", style = MaterialTheme.typography.titleMedium)
-                    IconButton(onClick = onClose) {
-                        Icon(Icons.Filled.Close, contentDescription = "Schließen")
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        // Neuer Chat: Verlauf leeren (+ laufenden Stream stoppen).
+                        IconButton(onClick = { chat.reset() }) {
+                            Icon(Icons.Filled.DeleteSweep, contentDescription = "Neuer Chat")
+                        }
+                        IconButton(onClick = onClose) {
+                            Icon(Icons.Filled.Close, contentDescription = "Schließen")
+                        }
                     }
                 }
 
@@ -131,11 +139,18 @@ private fun Composer(chat: OverlayChatState) {
                 androidx.compose.foundation.text.KeyboardOptions(imeAction = ImeAction.Send),
             modifier = Modifier.weight(1f),
         )
-        IconButton(
-            onClick = ::submit,
-            enabled = !streaming && input.isNotBlank(),
-        ) {
-            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Senden")
+        if (streaming) {
+            // Während des Streamens wird der Senden- zum Stopp-Button.
+            IconButton(onClick = { chat.cancelStream() }) {
+                Icon(Icons.Filled.Stop, contentDescription = "Stopp")
+            }
+        } else {
+            IconButton(
+                onClick = ::submit,
+                enabled = input.isNotBlank(),
+            ) {
+                Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Senden")
+            }
         }
     }
 }

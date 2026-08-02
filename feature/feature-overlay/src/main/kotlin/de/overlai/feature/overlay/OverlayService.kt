@@ -7,6 +7,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.content.res.Configuration
 import android.os.Build
 import android.os.IBinder
 import android.provider.Settings
@@ -16,6 +17,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 // CHANGE-MARKER v0.5.2: Overlay-Bubble (M3, siehe CHANGELOG.md)
 // Foreground-Service, der die Overlay-Bubble trägt. specialUse (nicht dataSync — dessen
@@ -31,12 +33,11 @@ class OverlayService : Service() {
     // Service-eigener Scope für die Chat-Streams (Main-Dispatcher: die Engine-Collector
     // aktualisieren Compose-State). In onDestroy gecancelt.
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val deps by lazy {
+        EntryPointAccessors.fromApplication(applicationContext, OverlayDependencies::class.java)
+    }
     private val chatState: OverlayChatState by lazy {
-        val engine =
-            EntryPointAccessors
-                .fromApplication(applicationContext, OverlayDependencies::class.java)
-                .conversationEngine()
-        OverlayChatState(engine, serviceScope)
+        OverlayChatState(deps.conversationEngine(), serviceScope)
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -46,8 +47,10 @@ class OverlayService : Service() {
         flags: Int,
         startId: Int,
     ): Int {
-        // Ohne Overlay-Permission kein Overlay — sauber beenden statt zu crashen.
+        // Ohne Overlay-Permission kein Overlay — sauber beenden statt zu crashen. Außerdem
+        // overlayEnabled zurücksetzen, damit der Toggle nicht fälschlich „an" zeigt.
         if (!Settings.canDrawOverlays(this)) {
+            serviceScope.launch { deps.settingsStore().setOverlayEnabled(false) }
             stopSelf()
             return START_NOT_STICKY
         }
@@ -101,6 +104,12 @@ class OverlayService : Service() {
                 setShowBadge(false)
             }
         manager.createNotificationChannel(channel)
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // Rotation/Größenänderung: Bubble neu clampen, offenes Panel neu vermessen.
+        controller?.onConfigChanged()
     }
 
     override fun onDestroy() {
