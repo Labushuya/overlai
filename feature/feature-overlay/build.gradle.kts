@@ -11,6 +11,8 @@ dependencies {
     // M3.2: Chat im Panel — Engine + Domain-Typen (ChatMessage/Role) wiederverwenden.
     implementation(project(":core:core-conversation"))
     implementation(project(":core:core-llm"))
+    // P2.1b: SessionRepository + SettingsStore für die aktive, persistente Session.
+    implementation(project(":core:core-data"))
     // savedstate: SavedStateRegistryOwner für ComposeView im WindowManager-Overlay
     // (Compose außerhalb einer Activity braucht die ViewTree-Owner explizit).
     implementation(libs.androidx.savedstate)

@@ -25,6 +25,7 @@ class SettingsStore(
     private val dynamicColorKey = booleanPreferencesKey("use_dynamic_color")
     private val onboardingShownKey = booleanPreferencesKey("onboarding_shown")
     private val overlayEnabledKey = booleanPreferencesKey("overlay_enabled")
+    private val activeSessionKey = stringPreferencesKey("active_session_id")
 
     // Aktiver Provider (Default: OpenAI). Fällt auf OpenAI zurück, falls die
     // gespeicherte ID nicht mehr in der Registry existiert.
@@ -103,5 +104,16 @@ class SettingsStore(
 
     suspend fun setOverlayEnabled(enabled: Boolean) {
         context.settingsStore.edit { it[overlayEnabledKey] = enabled }
+    }
+
+    // Multi-Chat (P2.1b): zuletzt geöffnete Session. Überlebt Neustart; Overlay und
+    // Fullscreen-Chat nutzen dieselbe aktive Session, damit beide denselben Verlauf zeigen.
+    val activeSessionId: Flow<String?> =
+        context.settingsStore.data
+            .map { it[activeSessionKey] }
+            .distinctUntilChanged()
+
+    suspend fun setActiveSession(id: String) {
+        context.settingsStore.edit { it[activeSessionKey] = id }
     }
 }
