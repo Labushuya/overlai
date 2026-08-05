@@ -31,6 +31,7 @@ import de.overlai.feature.settings.AppearanceViewModel
 import de.overlai.feature.settings.OverlaySettingsScreen
 import de.overlai.feature.settings.SettingsListScreen
 import de.overlai.feature.settings.SettingsRoutes
+import de.overlai.feature.updater.DebugUpdatesNotice
 import de.overlai.feature.updater.UpdateViewModel
 import de.overlai.feature.updater.UpdatesScreen
 import de.overlai.llm.providers.ProviderRegistry
@@ -84,25 +85,34 @@ fun AppNavHost(
 
         composable(SettingsRoutes.UPDATES) {
             val context = LocalContext.current
-            val vm =
-                viewModel<UpdateViewModel>(
-                    factory =
-                        simpleFactory {
-                            UpdateViewModel(
-                                currentVersion = deps.versionName,
-                                checker = deps.updateChecker,
-                                downloader = deps.apkDownloader,
-                                installer = deps.packageInstaller,
-                            )
-                        },
+            // Debug-Build (…app.debug): Updater deaktiviert — andere Signatur als Release,
+            // ein Update würde an INSTALL_FAILED_UPDATE_INCOMPATIBLE scheitern.
+            if (context.packageName.endsWith(".debug")) {
+                DebugUpdatesNotice(
+                    versionName = deps.versionName,
+                    onBack = { navController.popBackStack() },
                 )
-            UpdatesScreen(
-                viewModel = vm,
-                onBack = { navController.popBackStack() },
-                onFixInstallPermission = {
-                    context.startActivity(PermissionChecks.installUnknownAppsIntent(context))
-                },
-            )
+            } else {
+                val vm =
+                    viewModel<UpdateViewModel>(
+                        factory =
+                            simpleFactory {
+                                UpdateViewModel(
+                                    currentVersion = deps.versionName,
+                                    checker = deps.updateChecker,
+                                    downloader = deps.apkDownloader,
+                                    installer = deps.packageInstaller,
+                                )
+                            },
+                    )
+                UpdatesScreen(
+                    viewModel = vm,
+                    onBack = { navController.popBackStack() },
+                    onFixInstallPermission = {
+                        context.startActivity(PermissionChecks.installUnknownAppsIntent(context))
+                    },
+                )
+            }
         }
 
         composable(SettingsRoutes.APPEARANCE) {

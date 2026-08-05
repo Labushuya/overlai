@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#4C5BD4</color>
+    <!-- Adaptive-Icon-Hintergrund = Marken-Slate (Logo D4). Wird auch als Splash-
+         Hintergrund genutzt (themes.xml) — konsistent mit dem neuen Look. -->
+    <color name="ic_launcher_background">#485956</color>
 </resources>
