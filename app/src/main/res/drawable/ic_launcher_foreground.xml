@@ -1,12 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- CHANGE-MARKER v0.1.0: Platzhalter-Foreground (stilisiertes "O" für OverlAI).
-     Vektor, damit kein binäres PNG nötig ist. Wird im UX-Feinschliff ersetzt. -->
+<!-- CHANGE-MARKER: Marken-Icon "D4" (siehe brand/ + Memory overlai-logo-design).
+     Monogramm-O: Gold-Ring (#D0BB3E) = das "O"/die App-Ebene; schwebender Paper-Punkt
+     (#EBEFEE) oben-rechts mit Slate-Halo (#485956, liegt "über" dem Ring = Overlay);
+     kleine Gold-Funke im Punkt = KI/Intelligenz. Hintergrund (Slate) via
+     @color/ic_launcher_background im adaptive-icon. Motiv in der 108er-Safe-Zone. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+
+    <!-- Gold-Ring "O": Außenkreis r=28 minus Innenkreis r=16 (evenOdd) um (54,54). -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M54,30 C40.7,30 30,40.7 30,54 C30,67.3 40.7,78 54,78 C67.3,78 78,67.3 78,54 C78,40.7 67.3,30 54,30 Z M54,42 C60.6,42 66,47.4 66,54 C66,60.6 60.6,66 54,66 C47.4,66 42,60.6 42,54 C42,47.4 47.4,42 54,42 Z" />
+        android:fillColor="#D0BB3E"
+        android:fillType="evenOdd"
+        android:pathData="M54,26 a28,28 0 1,0 0.01,0 Z M54,38 a16,16 0 1,1 -0.01,0 Z" />
+
+    <!-- Slate-Halo hinter dem schwebenden Punkt (Hintergrundfarbe → Punkt liegt "davor"). -->
+    <path
+        android:fillColor="#485956"
+        android:pathData="M74,34 m-12,0 a12,12 0 1,0 24,0 a12,12 0 1,0 -24,0 Z" />
+
+    <!-- Schwebender Punkt (Paper). -->
+    <path
+        android:fillColor="#EBEFEE"
+        android:pathData="M74,34 m-9,0 a9,9 0 1,0 18,0 a9,9 0 1,0 -18,0 Z" />
+
+    <!-- KI-Funke im Punkt (Gold). -->
+    <path
+        android:fillColor="#D0BB3E"
+        android:pathData="M74,34 m-3.5,0 a3.5,3.5 0 1,0 7,0 a3.5,3.5 0 1,0 -7,0 Z" />
 </vector>

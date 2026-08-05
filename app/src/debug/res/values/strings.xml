@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- CHANGE-MARKER: Debug-Variante — eigenes App-Label, damit die parallel installierte
+     Debug-App (de.overlai.app.debug) im Launcher klar von der Release-App unterscheidbar
+     ist (zusätzlich zum Debug-Icon-Band). Überschreibt app_name im Debug-Build. -->
+<resources>
+    <string name="app_name">OverlAI Debug</string>
+</resources>

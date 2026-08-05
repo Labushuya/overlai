@@ -35,7 +35,9 @@ private val BubbleSize = 56.dp
 
 @Composable
 internal fun OverlayBubble(
+    onDragStart: () -> Unit,
     onDrag: (dx: Int, dy: Int) -> Unit,
+    onDragEnd: () -> Unit,
     onTap: () -> Unit,
 ) {
     OverlAiTheme {
@@ -51,12 +53,18 @@ internal fun OverlayBubble(
                         detectTapGestures(onTap = { onTap() })
                     }
                     // Drag: verschiebt das Overlay-Fenster (delta-basiert; dragAmount ist
-                    // inkrementell). change.consume() verhindert Doppelverarbeitung.
+                    // inkrementell). onDragStart zeigt die Papierkorb-Zone, onDragEnd
+                    // entscheidet (über Papierkorb → beenden, sonst → an den Rand snappen).
                     .pointerInput(Unit) {
-                        detectDragGestures { change, dragAmount ->
-                            change.consume()
-                            onDrag(dragAmount.x.toInt(), dragAmount.y.toInt())
-                        }
+                        detectDragGestures(
+                            onDragStart = { onDragStart() },
+                            onDragEnd = { onDragEnd() },
+                            onDragCancel = { onDragEnd() },
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                onDrag(dragAmount.x.toInt(), dragAmount.y.toInt())
+                            },
+                        )
                     },
         ) {
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {

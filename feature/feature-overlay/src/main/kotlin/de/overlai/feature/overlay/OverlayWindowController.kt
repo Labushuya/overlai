@@ -1,5 +1,6 @@
 package de.overlai.feature.overlay
 
+import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.PixelFormat
 import android.os.Build
@@ -7,6 +8,8 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.WindowManager
+import android.view.animation.DecelerateInterpolator
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 
@@ -22,6 +25,9 @@ import androidx.compose.ui.platform.ViewCompositionStrategy
 internal class OverlayWindowController(
     private val context: Context,
     private val chatState: OverlayChatState,
+    // Vom Service auf stopSelf() gemappt — gerufen, wenn die Bubble auf den Papierkorb
+    // gezogen und dort losgelassen wird.
+    private val onRequestStop: () -> Unit,
 ) {
     private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
@@ -34,6 +40,14 @@ internal class OverlayWindowController(
 
     private var panelView: ComposeView? = null
     private var panelOwner: OverlayLifecycleOwner? = null
+
+    // Papierkorb-Zone — nur während eines Drags am Fenster. Highlight via State (Hit-Test).
+    private var trashView: ComposeView? = null
+    private var trashOwner: OverlayLifecycleOwner? = null
+    private val trashHighlighted = mutableStateOf(false)
+
+    // Laufende Snap-Animation; bei neuem Drag / Teardown abbrechen.
+    private var snapAnimator: ValueAnimator? = null
 
     private val overlayType: Int
         get() =
@@ -62,7 +76,8 @@ internal class OverlayWindowController(
             ).apply {
                 gravity = Gravity.TOP or Gravity.START
                 x = 0
-                y = 200
+                // y unter der Statusbar starten (statt fixem Rohpixel-Wert).
+                y = statusBarHeight() + dpToPx(8f)
             }
         bubbleParams = params
 
@@ -73,11 +88,24 @@ internal class OverlayWindowController(
                 setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnLifecycleDestroyed(owner))
                 setContent {
                     OverlayBubble(
-                        // Drag verschiebt das Overlay-Fenster (delta-basiert aus Compose).
+                        // Drag-Beginn: Snap-Animation abbrechen + Papierkorb-Zone zeigen.
+                        onDragStart = {
+                            snapAnimator?.cancel()
+                            showTrash()
+                        },
+                        // Drag: Fenster verschieben (delta-basiert), auf den Bildschirm
+                        // clampen (nie off-screen), Papierkorb-Hover live prüfen.
                         onDrag = { dx, dy ->
-                            bubbleParams.x += dx
-                            bubbleParams.y += dy
+                            bubbleParams.x = clampX(bubbleParams.x + dx)
+                            bubbleParams.y = clampY(bubbleParams.y + dy)
                             bubbleView?.let { windowManager.updateViewLayout(it, bubbleParams) }
+                            trashHighlighted.value = isOverTrash()
+                        },
+                        // Drag-Ende: über Papierkorb → Overlay beenden; sonst → an den Rand snappen.
+                        onDragEnd = {
+                            val overTrash = isOverTrash()
+                            removeTrash()
+                            if (overTrash) onRequestStop() else snapToEdge()
                         },
                         onTap = { togglePanel() },
                     )
@@ -153,8 +181,11 @@ internal class OverlayWindowController(
         panelOwner = null
     }
 
-    // Alles abräumen (Service-Stop). Reihenfolge: Panel zuerst, dann Bubble.
+    // Alles abräumen (Service-Stop). Reihenfolge: Snap-Animation, Trash, Panel, Bubble.
     fun removeAll() {
+        snapAnimator?.cancel()
+        snapAnimator = null
+        removeTrash()
         removePanel()
         bubbleView?.let { view ->
             if (view.isAttachedToWindow) windowManager.removeView(view)
@@ -162,6 +193,115 @@ internal class OverlayWindowController(
         bubbleOwner?.destroy()
         bubbleView = null
         bubbleOwner = null
+    }
+
+    // --- Papierkorb-Zone (dritte Overlay-View, nur während eines Drags) ---
+
+    private fun showTrash() {
+        if (trashView != null) return
+        trashHighlighted.value = false
+        val params =
+            WindowManager.LayoutParams(
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                overlayType,
+                // Zone darf den Drag NICHT abfangen (Finger ist auf der Bubble).
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+                PixelFormat.TRANSLUCENT,
+            ).apply {
+                gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+                y = dpToPx(48f) // etwas Abstand vom unteren Rand
+            }
+        val owner = OverlayLifecycleOwner()
+        val view =
+            ComposeView(context).apply {
+                setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnLifecycleDestroyed(owner))
+                setContent { OverlayTrashZone(highlighted = trashHighlighted.value) }
+            }
+        owner.attachTo(view)
+        trashOwner = owner
+        trashView = view
+        windowManager.addView(view, params)
+        owner.markResumed()
+    }
+
+    private fun removeTrash() {
+        trashView?.let { view ->
+            if (view.isAttachedToWindow) windowManager.removeView(view)
+        }
+        trashOwner?.destroy()
+        trashView = null
+        trashOwner = null
+        trashHighlighted.value = false
+    }
+
+    // Liegt der Bubble-Mittelpunkt über der Papierkorb-Zone (unten zentriert)?
+    private fun isOverTrash(): Boolean {
+        if (trashView == null || !::bubbleParams.isInitialized) return false
+        val bubblePx = dpToPx(BUBBLE_SIZE_DP)
+        val centerX = bubbleParams.x + bubblePx / 2
+        val centerY = bubbleParams.y + bubblePx / 2
+        // Zonen-Rechteck: mittig-unten, großzügiger Radius um das Zonen-Zentrum.
+        val zoneW = dpToPx(TRASH_HIT_DP)
+        val zoneH = dpToPx(TRASH_HIT_DP)
+        val zoneCenterX = screenWidth() / 2
+        val zoneCenterY = screenHeight() - dpToPx(48f) - dpToPx(TRASH_CENTER_FROM_BOTTOM_DP)
+        return kotlin.math.abs(centerX - zoneCenterX) <= zoneW / 2 &&
+            kotlin.math.abs(centerY - zoneCenterY) <= zoneH / 2
+    }
+
+    // --- Positionierung / Snapping ---
+
+    private fun screenWidth(): Int = context.resources.displayMetrics.widthPixels
+
+    private fun screenHeight(): Int = context.resources.displayMetrics.heightPixels
+
+    private fun statusBarHeight(): Int {
+        val id = context.resources.getIdentifier("status_bar_height", "dimen", "android")
+        return if (id > 0) context.resources.getDimensionPixelSize(id) else dpToPx(24f)
+    }
+
+    private fun clampX(x: Int): Int = x.coerceIn(0, (screenWidth() - dpToPx(BUBBLE_SIZE_DP)).coerceAtLeast(0))
+
+    private fun clampY(y: Int): Int =
+        y.coerceIn(statusBarHeight(), (screenHeight() - dpToPx(BUBBLE_SIZE_DP)).coerceAtLeast(statusBarHeight()))
+
+    // Beim Loslassen an den näheren horizontalen Rand animieren (ValueAnimator, Main-Thread).
+    private fun snapToEdge() {
+        if (!::bubbleParams.isInitialized) return
+        val view = bubbleView ?: return
+        val bubblePx = dpToPx(BUBBLE_SIZE_DP)
+        val maxX = (screenWidth() - bubblePx).coerceAtLeast(0)
+        val targetX = if (bubbleParams.x + bubblePx / 2 < screenWidth() / 2) 0 else maxX
+
+        snapAnimator?.cancel()
+        snapAnimator =
+            ValueAnimator.ofInt(bubbleParams.x, targetX).apply {
+                duration = SNAP_DURATION_MS
+                interpolator = DecelerateInterpolator()
+                addUpdateListener { a ->
+                    bubbleParams.x = a.animatedValue as Int
+                    bubbleParams.y = clampY(bubbleParams.y)
+                    if (view.isAttachedToWindow) windowManager.updateViewLayout(view, bubbleParams)
+                }
+                start()
+            }
+    }
+
+    // Konfig-Änderung (v.a. Rotation): Bubble neu clampen + an den passenden Rand snappen,
+    // offenes Panel neu aufbauen (damit Breite/Position zur neuen Orientierung passen).
+    fun onConfigChanged() {
+        if (::bubbleParams.isInitialized) {
+            bubbleParams.x = clampX(bubbleParams.x)
+            bubbleParams.y = clampY(bubbleParams.y)
+            bubbleView?.let { if (it.isAttachedToWindow) windowManager.updateViewLayout(it, bubbleParams) }
+            snapToEdge()
+        }
+        if (panelView != null) {
+            removePanel()
+            showPanel()
+        }
     }
 
     // dp → px anhand der aktuellen Display-Dichte (feste Overlay-Fenstergröße).
@@ -173,5 +313,13 @@ internal class OverlayWindowController(
     private companion object {
         // Feste Bubble-Kantenlänge in dp (muss zur BubbleSize in OverlayBubble.kt passen).
         const val BUBBLE_SIZE_DP = 56f
+
+        // Trefferfläche der Papierkorb-Zone in dp (großzügiger als das sichtbare Icon).
+        const val TRASH_HIT_DP = 120f
+
+        // Zonen-Zentrum liegt ~ auf halber Zonenhöhe über dem 48dp-Bottom-Offset.
+        const val TRASH_CENTER_FROM_BOTTOM_DP = 40f
+
+        const val SNAP_DURATION_MS = 220L
     }
 }
