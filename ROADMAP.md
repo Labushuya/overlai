@@ -52,17 +52,21 @@ Baut direkt auf `ConversationSession` auf. Room ist in `:core-data` bereits verd
   schon die additive Überladung. Verläufe überleben Neustart.
 - Ziel: Overlay, Fullscreen, Notification, Share greifen alle auf denselben Session-Store.
 
-### P2.2 — Bubble-Snapping & -Verhalten (refactoring-fest) `geplant`
-Die alte M3.3-Umsetzung (PR #28) ist am Gerät **unbrauchbar** (kein Snapping, IME schiebt
-Panel kaputt, kein Papierkorb) UND überschneidet sich mit PR #29 (P2.1a) in `feature-overlay`.
-**PR #28 verwerfen**, hier von Grund auf neu bauen (auf Basis des vereinheitlichten Kerns):
-So gebaut, dass das folgende UI-Redesign sie nicht erneut anfassen muss:
-- **Snapping wie Android-Standard** (Messenger/HONOR): Bubble klebt an der Kante, animiert.
-- **Papierkorb zum Schließen:** beim Drag erscheint mittig-unten eine Schließzone; Bubble
-  dort loslassen → Overlay aus (HONOR Magic V2 / Android-Bordmittel-Verhalten).
-- **Panel feste Größe** + korrekte Positionsberechnung (nicht dynamisch verschoben).
-- **IME:** setzt Snapping/feste Größe voraus — Panel klappt vollständig sichtbar auf.
-- **Rotation:** vertikale Anordnung auf horizontal „mappen" mit Fallbacks.
+### P2.2 — Bubble-Snapping & -Verhalten `erledigt (PR #33 gemergt, am Gerät verifiziert)`
+Neubau (der alte PR #28 war unbrauchbar → verworfen). Umgesetzt & am Gerät bestätigt:
+- **Snapping** an den näheren Rand beim Loslassen (ValueAnimator, keine neue Dependency).
+- **Clamping** — Bubble nicht mehr off-screen ziehbar; Startposition unter der Statusbar.
+- **Papierkorb-Zone** mittig-unten (erscheint beim Drag, Hover-Highlight); Loslassen darüber
+  → Overlay beenden (`onRequestStop` → `stopSelf`).
+- **Rotation** via `OverlayService.onConfigurationChanged` → `Controller.onConfigChanged`.
+
+**Zusätzlich in PR #33 (Debug-Anpassungen, Nutzerwunsch):** Updater im Debug-Build deaktiviert
+(`DebugUpdatesNotice`); Marken-Icon D4 umgesetzt (aus P2.5 vorgezogen — Bubble-Icon/Splash/Theme
+bleiben P2.5); Debug-Variante mit Gold-Band + Label „OverlAI Debug".
+
+**OFFEN aus P2.2 (bewusst noch nicht angefasst) → in P2.5 mit dem Panel-Redesign:** feste
+Panel-Größe + IME-Handling (Tastatur darf das Eingabefeld nicht verdecken). Am Gerät noch
+gegenzuprüfen, sobald das Panel-UI in P2.5 überarbeitet wird.
 
 ### P2.3 — Logo & Marke `Design entschieden, Umsetzung mit P2.5 gebündelt`
 Ersetzt das alte, nie abgestimmte Material-Chat-Icon. **Entschieden (2026-08-02):** Konzept
