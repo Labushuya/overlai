@@ -1,29 +1,111 @@
 package de.overlai.feature.overlay
 
+import de.overlai.conversation.ChatUiMessage
 import de.overlai.conversation.ConversationEngine
 import de.overlai.conversation.ConversationSession
+import de.overlai.core.data.SettingsStore
+import de.overlai.core.data.chat.SessionRepository
+import de.overlai.llm.Role
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 
-// CHANGE-MARKER: Chat-Kern vereinheitlicht (P2.1a, siehe CHANGELOG.md)
-// Dünner Wrapper um die gemeinsame ConversationSession (core-conversation). Die frühere
-// eigene SnapshotStateList-Akkumulation + UiMessage-Klasse sind ENTFALLEN — der Overlay-
-// Chat nutzt jetzt denselben Kern wie der Fullscreen-Chat. Vom Service gehalten (Service-
-// Scope), damit der Zustand das Auf-/Zuklappen des Panels überdauert.
+// CHANGE-MARKER: Multi-Chat-Persistenz (P2.1b, siehe CHANGELOG.md)
+// Overlay-Chat, gebunden an die AKTIVE persistente Session (active_session_id) — zeigt
+// denselben Verlauf wie der Fullscreen-Chat, mit deren eigenem Provider/Modell. Gibt es
+// (noch) keine aktive Session, wird eine angelegt. Vom Service gehalten (Service-Scope),
+// damit der Zustand das Auf-/Zuklappen des Panels überdauert.
 internal class OverlayChatState(
-    engine: ConversationEngine,
-    scope: CoroutineScope,
+    private val engine: ConversationEngine,
+    private val scope: CoroutineScope,
+    private val repo: SessionRepository,
+    private val settingsStore: SettingsStore,
 ) {
-    private val session = ConversationSession(engine, scope)
+    private val sessionFlow = MutableStateFlow<ConversationSession?>(null)
 
-    val state: StateFlow<ConversationSession.State> get() = session.state
+    // Der State der aktiven Session (leer, solange noch nicht geladen).
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val state: StateFlow<ConversationSession.State> =
+        MutableStateFlow(ConversationSession.State()).also { out ->
+            scope.launch {
+                sessionFlow
+                    .flatMapLatest { s -> s?.state ?: flowOf(ConversationSession.State()) }
+                    .collect { out.value = it }
+            }
+        }
 
-    fun send(input: String) = session.send(input)
+    init {
+        scope.launch { ensureSession() }
+    }
 
-    fun cancelStream() = session.cancel()
+    // Aktive Session laden bzw. anlegen, dann die persistente ConversationSession bauen.
+    private suspend fun ensureSession() {
+        if (sessionFlow.value != null) return
+        val activeId = settingsStore.activeSessionId.first()
+        val session = activeId?.let { repo.getSession(it) }
+        val id: String
+        val providerId: String
+        val modelId: String?
+        if (session != null) {
+            id = session.id
+            providerId = session.providerId
+            modelId = session.modelId
+        } else {
+            // Keine aktive Session → eine neue mit der globalen Provider-Wahl anlegen.
+            providerId = settingsStore.activeProviderId.first()
+            modelId = settingsStore.activeModelId(providerId).first()
+            id = java.util.UUID.randomUUID().toString()
+            repo.createSession(id, "Neuer Chat", providerId, modelId, System.currentTimeMillis())
+            settingsStore.setActiveSession(id)
+        }
+        sessionFlow.value = buildSession(id, providerId, modelId)
+    }
 
-    fun reset() = session.reset()
+    private fun buildSession(
+        sessionId: String,
+        providerId: String,
+        modelId: String?,
+    ): ConversationSession {
+        val persistence =
+            object : ConversationSession.Persistence {
+                private var titleSet = false
 
-    // Beim Öffnen des Panels: „kein Key"-Hinweis einblenden, falls nötig.
-    fun checkKey() = session.showKeyHintIfMissing()
+                override suspend fun loadHistory(): List<ChatUiMessage> =
+                    repo.messages(sessionId).map { ChatUiMessage(it.role, it.text) }
+
+                override suspend fun onUserMessage(text: String) {
+                    val now = System.currentTimeMillis()
+                    repo.appendMessage(sessionId, Role.USER, text, now)
+                    if (!titleSet) {
+                        repo.updateTitle(sessionId, text.take(40), now)
+                        titleSet = true
+                    }
+                }
+
+                override suspend fun onAssistantMessage(text: String) {
+                    repo.appendMessage(sessionId, Role.ASSISTANT, text, System.currentTimeMillis())
+                }
+            }
+        return ConversationSession(engine.streamerFor(providerId, modelId), scope, persistence)
+    }
+
+    fun send(input: String) {
+        sessionFlow.value?.send(input)
+    }
+
+    fun cancelStream() {
+        sessionFlow.value?.cancel()
+    }
+
+    fun reset() {
+        sessionFlow.value?.reset()
+    }
+
+    fun checkKey() {
+        sessionFlow.value?.showKeyHintIfMissing()
+    }
 }

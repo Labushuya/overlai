@@ -14,4 +14,8 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
     implementation(libs.kotlinx.coroutines.android)
+
+    // Room-DAO-Test läuft als JVM-Test mit Robolectric (Room braucht Android-Context).
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.junit)
 }
