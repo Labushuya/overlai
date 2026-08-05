@@ -11,10 +11,13 @@ data class PermissionItem(
     val granted: Boolean,
     // true = Fix ist ein System-Deep-Link; false = In-App (z.B. Onboarding).
     val fixIsSystemSetting: Boolean = true,
+    // P2.1c: reines Info-Item (geräteabhängiger Hinweis, z.B. Honor „Schwebefenster") — kein
+    // grün/rot-Status, kein Fix-Button; nur Erklärtext. `granted` wird dann ignoriert.
+    val isInfo: Boolean = false,
 )
 
 data class PermissionHubState(
     val items: List<PermissionItem> = emptyList(),
 ) {
-    val allGranted: Boolean get() = items.all { it.granted }
+    val allGranted: Boolean get() = items.filterNot { it.isInfo }.all { it.granted }
 }

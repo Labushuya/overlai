@@ -79,14 +79,20 @@ private fun PermissionRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = if (item.granted) "✅" else "❌",
+                text =
+                    when {
+                        item.isInfo -> "ℹ️"
+                        item.granted -> "✅"
+                        else -> "❌"
+                    },
                 modifier = Modifier.padding(end = 12.dp),
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(item.title, fontWeight = FontWeight.Medium)
                 Text(item.rationale, style = MaterialTheme.typography.bodySmall)
             }
-            if (!item.granted) {
+            // Info-Items haben keinen Fix (nur Erklärung); erfüllte auch nicht.
+            if (!item.isInfo && !item.granted) {
                 TextButton(onClick = { onFix(item) }) { Text("Fix") }
             }
         }

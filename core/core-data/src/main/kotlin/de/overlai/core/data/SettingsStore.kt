@@ -116,4 +116,10 @@ class SettingsStore(
     suspend fun setActiveSession(id: String) {
         context.settingsStore.edit { it[activeSessionKey] = id }
     }
+
+    // P2.1c: aktive Auswahl leeren (z.B. wenn die aktive Session gelöscht wird). Das Overlay
+    // zeigt danach einen leeren Panel-State bzw. legt bei Bedarf eine neue Session an.
+    suspend fun clearActiveSession() {
+        context.settingsStore.edit { it.remove(activeSessionKey) }
+    }
 }

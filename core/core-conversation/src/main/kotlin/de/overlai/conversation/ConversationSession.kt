@@ -41,7 +41,9 @@ class ConversationSession(
     // Schmale Persistenz-Schnittstelle (DI-frei; die Room-Anbindung liefert :app/Overlay).
     // Entkoppelt core-conversation vom konkreten SessionRepository/Room (keine Zirkularität).
     interface Persistence {
-        suspend fun loadHistory(): List<ChatUiMessage>
+        // Reaktiv: emittiert bei jeder Änderung am persistierten Verlauf (Room-Flow). Default
+        // leer für flüchtige Sessions.
+        fun observeHistory(): Flow<List<ChatUiMessage>> = kotlinx.coroutines.flow.flowOf(emptyList())
 
         suspend fun onUserMessage(text: String)
 
@@ -60,13 +62,15 @@ class ConversationSession(
     private var streamJob: Job? = null
 
     init {
-        // Persistierten Verlauf beim Erstellen laden (falls Persistenz gesetzt).
-        val p = persistence
-        if (p != null) {
+        // Persistierten Verlauf reaktiv beobachten (falls Persistenz gesetzt). Während des
+        // Streamens NICHT übernehmen — sonst überschreibt der DB-Snapshot die laufende,
+        // noch nicht persistierte Assistant-Bubble. Im Ruhezustand ist die DB die Wahrheit.
+        persistence?.let { p ->
             scope.launch {
-                val loaded = p.loadHistory()
-                if (loaded.isNotEmpty() && _state.value.messages.isEmpty()) {
-                    _state.value = _state.value.copy(messages = loaded)
+                p.observeHistory().collect { persisted ->
+                    if (!_state.value.isStreaming) {
+                        _state.value = _state.value.copy(messages = persisted)
+                    }
                 }
             }
         }

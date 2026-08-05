@@ -6,11 +6,11 @@ import de.overlai.conversation.ChatUiMessage
 import de.overlai.conversation.ConversationEngine
 import de.overlai.conversation.ConversationSession
 import de.overlai.core.data.chat.SessionRepository
-import de.overlai.core.data.chat.StoredMessage
 import de.overlai.llm.Role
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 // CHANGE-MARKER: Multi-Chat-Persistenz (P2.1b, siehe CHANGELOG.md)
@@ -30,7 +30,8 @@ class ChatViewModel(
         object : ConversationSession.Persistence {
             private var titleSet = false
 
-            override suspend fun loadHistory(): List<ChatUiMessage> = repo.messages(sessionId).map { it.toUi() }
+            override fun observeHistory() =
+                repo.observeMessages(sessionId).map { list -> list.map { ChatUiMessage(it.role, it.text) } }
 
             override suspend fun onUserMessage(text: String) {
                 repo.appendMessage(sessionId, Role.USER, text, now())
@@ -84,8 +85,6 @@ class ChatViewModel(
         currentInput = ""
         _state.value = _state.value.copy(input = "")
     }
-
-    private fun StoredMessage.toUi(): ChatUiMessage = ChatUiMessage(role = role, text = text)
 
     private companion object {
         const val TITLE_MAX_LEN = 40

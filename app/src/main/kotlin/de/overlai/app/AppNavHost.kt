@@ -145,9 +145,10 @@ fun AppNavHost(
     }
 }
 
-// Overlay-Bubble-Toggle: hält Enabled-Wunsch (SettingsStore) + Live-Permission-Status
-// und steuert den Foreground-Service. Permission-Check + Service-Start liegen hier in
-// :app (das Feature-Modul bleibt UI-only).
+// Overlay-Bubble-Toggle: hält Enabled-Wunsch (SettingsStore) + Live-Permission-Status.
+// P2.1c: Toggle ist von der Berechtigung ENTKOPPELT — der Wunsch wird immer gespeichert;
+// der Service startet nur, wenn die Berechtigung da ist. „Zum Berechtigungs-Menü" navigiert
+// ins gebündelte Permission-Menü (kein direkter Grant-Intent mehr hier).
 @Composable
 private fun OverlayRoute(
     deps: AppDependencies,
@@ -157,10 +158,15 @@ private fun OverlayRoute(
     val scope = rememberCoroutineScope()
     var enabled by remember { mutableStateOf(false) }
     var hasPermission by remember { mutableStateOf(false) }
-    // Nach Rückkehr aus den System-Einstellungen (Permission erteilt) neu einlesen.
+    // Nach Rückkehr aus den System-Einstellungen (Permission erteilt) neu einlesen. Erteilt der
+    // Nutzer die Berechtigung und die Bubble war gewünscht, den Service jetzt nachstarten —
+    // aber den Toggle NICHT umschalten (Berechtigung ≠ Aktion).
     OnResume {
         hasPermission = PermissionChecks.canDrawOverlays(context)
-        scope.launch { enabled = deps.settingsStore.overlayEnabled.first() }
+        scope.launch {
+            enabled = deps.settingsStore.overlayEnabled.first()
+            if (enabled && hasPermission) OverlayService.start(context)
+        }
     }
     OverlaySettingsScreen(
         enabled = enabled,
@@ -168,10 +174,16 @@ private fun OverlayRoute(
         onToggle = { wanted ->
             enabled = wanted
             scope.launch { deps.settingsStore.setOverlayEnabled(wanted) }
-            if (wanted) OverlayService.start(context) else OverlayService.stop(context)
+            // Service nur starten, wenn die Berechtigung da ist; sonst bleibt der Wunsch
+            // gespeichert und die Bubble erscheint, sobald die Berechtigung erteilt wurde.
+            if (wanted && hasPermission) {
+                OverlayService.start(context)
+            } else if (!wanted) {
+                OverlayService.stop(context)
+            }
         },
-        onRequestPermission = {
-            context.startActivity(PermissionChecks.overlayPermissionIntent(context))
+        onOpenPermissions = {
+            navController.navigate(SettingsRoutes.PERMISSIONS)
         },
         onBack = { navController.popBackStack() },
     )
@@ -292,17 +304,30 @@ private fun PermissionsRoute(
                                 rationale = "Nötig, damit der In-App-Updater neue Versionen installieren kann.",
                                 granted = PermissionChecks.canInstallPackages(context),
                             ),
+                            // --- Bubble-Berechtigungen gebündelt (P2.1c) ---
+                            PermissionItem(
+                                id = "overlay",
+                                title = "Bubble: Über anderen Apps anzeigen",
+                                rationale = "Pflicht für die Overlay-Bubble — blendet OverlAI über anderen Apps ein.",
+                                granted = PermissionChecks.canDrawOverlays(context),
+                            ),
                             PermissionItem(
                                 id = "notifications",
-                                title = "Benachrichtigungen",
-                                rationale = "Für Update- und Download-Hinweise.",
+                                title = "Bubble: Benachrichtigungen",
+                                rationale =
+                                    "Die Bubble läuft als Vordergrund-Dienst und braucht dafür eine " +
+                                        "Benachrichtigung. Außerdem für Update-Hinweise.",
                                 granted = PermissionChecks.notificationsEnabled(context),
                             ),
                             PermissionItem(
-                                id = "overlay",
-                                title = "Über anderen Apps anzeigen",
-                                rationale = "Nötig für die Overlay-Bubble, die OverlAI über anderen Apps einblendet.",
-                                granted = PermissionChecks.canDrawOverlays(context),
+                                id = "floating_window_hint",
+                                title = "Bubble: „Schwebefenster\" (geräteabhängig)",
+                                rationale =
+                                    "Manche Hersteller (z.B. Honor/Huawei EMUI, Xiaomi) verstecken zusätzlich " +
+                                        "einen „Schwebefenster\"-Schalter pro App. Bleibt die Bubble trotz erteilter " +
+                                        "Berechtigung unsichtbar, aktiviere ihn in den System-App-Infos.",
+                                granted = false,
+                                isInfo = true,
                             ),
                         ),
                 )

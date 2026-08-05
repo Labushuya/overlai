@@ -13,6 +13,8 @@ dependencies {
     implementation(project(":core:core-llm"))
     // P2.1b: SessionRepository + SettingsStore für die aktive, persistente Session.
     implementation(project(":core:core-data"))
+    // P2.1c: KeyVault (Modellwahl im Panel braucht den Provider-Key für den Katalog-Abruf).
+    implementation(project(":core:core-security"))
     // savedstate: SavedStateRegistryOwner für ComposeView im WindowManager-Overlay
     // (Compose außerhalb einer Activity braucht die ViewTree-Owner explizit).
     implementation(libs.androidx.savedstate)

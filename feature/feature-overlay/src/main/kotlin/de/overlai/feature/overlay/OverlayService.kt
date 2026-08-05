@@ -39,6 +39,8 @@ class OverlayService : Service() {
             scope = serviceScope,
             repo = deps.sessionRepository(),
             settingsStore = deps.settingsStore(),
+            keyVault = deps.keyVault(),
+            modelCatalog = deps.modelCatalog(),
         )
     }
 
