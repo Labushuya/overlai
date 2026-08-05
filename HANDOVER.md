@@ -1,9 +1,11 @@
 # OverlAI — Session-Handover
 
-**Stand:** 2026-08-02 · **Letzter Release:** v0.6.1 (live; Overlay-Bubble). **Phase 1 abgeschlossen; Phase 2 (Produktausbau) läuft — siehe ROADMAP.md.**
-- **P2.1a gemergt** (PR #29, `main`): Chat-Kern vereinheitlicht (ConversationSession) — Fundament für Multi-Chat/Entry-Points. Am Gerät verhaltensgleich verifiziert. **Nicht released** (nur main; Verhalten für Nutzer unverändert).
-- **PR #28 (M3.3-Robustheit) geschlossen/verworfen** — war am Gerät unbrauchbar; Snapping/Papierkorb kommen in P2.2 neu (auf Basis des vereinheitlichten Kerns).
-- Offen nur noch Dependabot-/CI-Bump-PRs (→ P2.7).
+**Stand:** 2026-08-05 · **Letzter Release:** v0.6.1 (live). **Phase 1 abgeschlossen; Phase 2 (Produktausbau) läuft — Reihenfolge in ROADMAP.md.** Auf `main`, aber **noch nicht released** (Verhalten für Release-Nutzer = v0.6.1):
+- **P2.1a gemergt** (PR #29): Chat-Kern vereinheitlicht (ConversationSession) — Fundament für Multi-Chat/Entry-Points; am Gerät verhaltensgleich.
+- **P2.2 gemergt** (PR #33): Bubble-**Snapping** + **Clamping** + **Papierkorb** (mittig-unten, Hover) + **Rotation** — Neubau, am Gerät verifiziert. Ersetzt den verworfenen PR #28.
+- **Debug-Anpassungen** (PR #33): Updater im Debug-Build deaktiviert (`DebugUpdatesNotice`); Marken-**Icon D4** umgesetzt (aus P2.5 vorgezogen — Rest: Bubble-Icon/Splash/Theme bleibt P2.5), Debug-Variante mit Gold-Band + Label „OverlAI Debug".
+- **Arbeitsweise (Nutzer-Feedback, load-bearing):** Fertig + verifiziert = **zeitnah nach `main` mergen**, keine Feature-Branches stapeln. Branches nach Merge/Verwerfen löschen (lokal + remote). Offene PRs sind aktuell **nur Dependabot/CI-Bumps** (→ P2.7).
+- **Nächster Schritt: P2.1b** (Room-Persistenz + echtes Multi-Chat), dann P2.4/P2.5/P2.6/P2.7.
 
 Repo: `Labushuya/overlai` (public) · Lokal: `C:\Code\claude\apps\overlai`
 
