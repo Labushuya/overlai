@@ -13,5 +13,7 @@ data class ChatUiState(
     val isStreaming: Boolean = false,
     val error: String? = null,
     val providerName: String = "",
+    // P3: Modell der Session für den Anbieter/Modell-Chip im Header (null = Provider-Default).
+    val modelId: String? = null,
     val hasApiKey: Boolean = true,
 )

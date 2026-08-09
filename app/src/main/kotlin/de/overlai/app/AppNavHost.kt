@@ -20,6 +20,7 @@ import de.overlai.feature.chat.ChatListScreen
 import de.overlai.feature.chat.ChatListViewModel
 import de.overlai.feature.chat.ChatScreen
 import de.overlai.feature.chat.ChatViewModel
+import de.overlai.feature.chat.NewChatViewModel
 import de.overlai.feature.onboarding.ProviderHubScreen
 import de.overlai.feature.onboarding.ProviderHubViewModel
 import de.overlai.feature.overlay.OverlayService
@@ -199,6 +200,18 @@ private fun ChatListRoute(
         viewModel<ChatListViewModel>(
             factory = simpleFactory { ChatListViewModel(deps.sessionRepository, deps.settingsStore) },
         )
+    val newChatVm =
+        viewModel<NewChatViewModel>(
+            factory =
+                simpleFactory {
+                    NewChatViewModel(
+                        repo = deps.sessionRepository,
+                        settingsStore = deps.settingsStore,
+                        keyVault = deps.keyVault,
+                        catalog = deps.modelCatalog,
+                    )
+                },
+        )
     // First-run: einmalig ins Provider-Setup routen, wenn noch kein Key + Onboarding nie gezeigt.
     LaunchedEffect(Unit) {
         val shown = deps.settingsStore.onboardingShown.first()
@@ -210,6 +223,7 @@ private fun ChatListRoute(
     }
     ChatListScreen(
         viewModel = vm,
+        newChatViewModel = newChatVm,
         onOpenSession = { sessionId -> navController.navigate(Routes.chatDetail(sessionId)) },
     )
 }
