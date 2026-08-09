@@ -14,68 +14,72 @@ import androidx.compose.ui.platform.LocalContext
 import de.overlai.common.ThemeMode
 import de.overlai.common.ThemePreferences
 
-// CHANGE-MARKER: Marken-Palette (P2.1c-Politur, siehe CHANGELOG.md)
-// OverlAI Material-3-Theme mit VOLLEM Marken-Farbschema aus der Logo-Palette
-// (Gold D0BB3E, Grün-Grau 485956, Off-White EBEFEE) — nicht mehr nur 3 Rollen auf
-// M3-Default-Grau ("schwarze Masse"). Alle Flächen/Container sind gesetzt, damit die
-// Palette durchgängig sichtbar ist. Dynamic Color ist jetzt Opt-in (Default aus), sonst
-// überschrieb die Systemfarbe die Marke. Nimmt einen aufgelösten ThemePreferences-Snapshot.
+// CHANGE-MARKER: Marken-Palette v2 (siehe CHANGELOG.md)
+// OverlAI Material-3-Theme mit VOLLEM Farbschema aus der neuen Palette:
+// Tiefblau 142C96 (primär), Cyan-Blau 2B8AB6 (sekundär), Oliv-Gold 887B3F (Akzent/tertiär),
+// helles Blau DBE1FA (helle Flächen). Alle Rollen/Flächen sind gesetzt, damit die Palette
+// durchgängig sichtbar ist (kein M3-Default-Grau). Dynamic Color ist Opt-in (Default aus),
+// sonst überschrieb die Systemfarbe die Marke. Nimmt einen aufgelösten ThemePreferences-Snapshot.
 
-// --- Logo-Palette ---
-private val BrandGold = Color(0xFFD0BB3E) // primär: Akzent, Buttons, aktive Zustände
-private val BrandGoldDark = Color(0xFF8A7A1F) // dunklerer Gold-Ton (Text auf Gold, dark scheme)
-private val BrandGreen = Color(0xFF485956) // sekundär: Grün-Grau, ruhige Flächen
-private val BrandGreenDark = Color(0xFF2B3634) // dunklere Variante
-private val BrandGreenLight = Color(0xFFCDD6D3) // heller Grün-Grau-Ton (Container hell)
-private val BrandOffWhite = Color(0xFFEBEFEE) // helle Flächen (background/surface)
-private val BrandInk = Color(0xFF1B211F) // Text/dunkle Flächen (kein reines Schwarz)
+// --- Palette (Basis + abgeleitete Töne) ---
+private val DeepBlue = Color(0xFF142C96) // primär: Buttons, aktive Zustände
+private val DeepBlueLight = Color(0xFFDDE1F6) // heller Container zu DeepBlue
+private val CyanBlue = Color(0xFF2B8AB6) // sekundär: Akzent
+private val CyanBlueLight = Color(0xFFD3E7F1) // heller Container zu CyanBlue
+private val CyanBlueDark = Color(0xFF0E4A66) // dunkle Variante (Text auf hellem Cyan)
+private val OliveGold = Color(0xFF887B3F) // tertiär: warmer Akzent-Gegenpol
+private val OliveGoldLight = Color(0xFFEDE8CF) // heller Container zu OliveGold
+private val OliveGoldDark = Color(0xFF5A521F) // dunkle Variante
+private val PaleBlue = Color(0xFFDBE1FA) // helle Flächen (background)
+private val Ink = Color(0xFF121629) // Text/dunkle Flächen (kein reines Schwarz, blaustichig)
 
 private val LightColors =
     lightColorScheme(
-        primary = BrandGold,
-        onPrimary = BrandInk,
-        primaryContainer = Color(0xFFF3E9B8),
-        onPrimaryContainer = BrandGoldDark,
-        secondary = BrandGreen,
-        onSecondary = BrandOffWhite,
-        secondaryContainer = BrandGreenLight,
-        onSecondaryContainer = BrandGreenDark,
-        tertiary = BrandGreenDark,
-        onTertiary = BrandOffWhite,
-        tertiaryContainer = BrandGreenLight,
-        onTertiaryContainer = BrandGreenDark,
-        background = BrandOffWhite,
-        onBackground = BrandInk,
-        surface = Color(0xFFF6F8F7),
-        onSurface = BrandInk,
-        surfaceVariant = BrandGreenLight,
-        onSurfaceVariant = BrandGreenDark,
-        outline = BrandGreen,
-        outlineVariant = Color(0xFFAEBAB6),
+        primary = DeepBlue,
+        onPrimary = Color.White,
+        primaryContainer = DeepBlueLight,
+        onPrimaryContainer = DeepBlue,
+        secondary = CyanBlue,
+        onSecondary = Color.White,
+        secondaryContainer = CyanBlueLight,
+        onSecondaryContainer = CyanBlueDark,
+        tertiary = OliveGold,
+        onTertiary = Color.White,
+        tertiaryContainer = OliveGoldLight,
+        onTertiaryContainer = OliveGoldDark,
+        background = PaleBlue,
+        onBackground = Ink,
+        surface = Color(0xFFF3F5FC),
+        onSurface = Ink,
+        surfaceVariant = DeepBlueLight,
+        onSurfaceVariant = CyanBlueDark,
+        outline = CyanBlue,
+        outlineVariant = Color(0xFFAEB8DA),
     )
 
 private val DarkColors =
     darkColorScheme(
-        primary = BrandGold,
-        onPrimary = BrandInk,
-        primaryContainer = BrandGoldDark,
-        onPrimaryContainer = Color(0xFFF3E9B8),
-        secondary = BrandGreenLight,
-        onSecondary = BrandGreenDark,
-        secondaryContainer = BrandGreen,
-        onSecondaryContainer = BrandOffWhite,
-        tertiary = BrandGreenLight,
-        onTertiary = BrandGreenDark,
-        tertiaryContainer = BrandGreen,
-        onTertiaryContainer = BrandOffWhite,
-        background = BrandInk,
-        onBackground = BrandOffWhite,
-        surface = Color(0xFF242C2A),
-        onSurface = BrandOffWhite,
-        surfaceVariant = BrandGreenDark,
-        onSurfaceVariant = BrandGreenLight,
-        outline = BrandGreenLight,
-        outlineVariant = BrandGreen,
+        // hellere Blau-Variante für Kontrast auf dunkel
+        primary = Color(0xFFAEBCF5),
+        onPrimary = DeepBlue,
+        primaryContainer = DeepBlue,
+        onPrimaryContainer = DeepBlueLight,
+        secondary = Color(0xFF8FCBE6),
+        onSecondary = CyanBlueDark,
+        secondaryContainer = CyanBlueDark,
+        onSecondaryContainer = CyanBlueLight,
+        tertiary = Color(0xFFD6C878),
+        onTertiary = OliveGoldDark,
+        tertiaryContainer = OliveGoldDark,
+        onTertiaryContainer = OliveGoldLight,
+        background = Ink,
+        onBackground = PaleBlue,
+        surface = Color(0xFF1C2138),
+        onSurface = PaleBlue,
+        surfaceVariant = Color(0xFF2A3052),
+        onSurfaceVariant = Color(0xFFC3CBEC),
+        outline = CyanBlue,
+        outlineVariant = Color(0xFF3A426A),
     )
 
 @Composable
