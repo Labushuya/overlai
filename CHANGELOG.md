@@ -6,6 +6,13 @@ Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1
 die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 Dieser Changelog wird ab dem ersten Release von `release-please` gepflegt.
 
+## [0.8.0](https://github.com/Labushuya/overlai/compare/v0.7.2...v0.8.0) (2026-08-09)
+
+
+### Features
+
+* **chat:** Modell-Chip, Chat-CRUD & geführter Neuer-Chat-Flow (E1) ([#38](https://github.com/Labushuya/overlai/issues/38)) ([4cb8006](https://github.com/Labushuya/overlai/commit/4cb800657e3521c17c3b01591bd909af4bb596a9))
+
 ## [0.7.2](https://github.com/Labushuya/overlai/compare/v0.7.1...v0.7.2) (2026-08-09)
 
 
