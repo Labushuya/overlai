@@ -6,6 +6,13 @@ Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1
 die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 Dieser Changelog wird ab dem ersten Release von `release-please` gepflegt.
 
+## [0.7.1](https://github.com/Labushuya/overlai/compare/v0.7.0...v0.7.1) (2026-08-09)
+
+
+### Bug Fixes
+
+* **ui:** App-Icon + Splash auf Blau-Palette (Release + Debug) ([6e63073](https://github.com/Labushuya/overlai/commit/6e6307376e9eec7c081ff23310be068d6e62a74e))
+
 ## [0.7.0](https://github.com/Labushuya/overlai/compare/v0.6.1...v0.7.0) (2026-08-09)
 
 
