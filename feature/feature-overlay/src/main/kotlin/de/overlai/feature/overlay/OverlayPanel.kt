@@ -1,5 +1,6 @@
 package de.overlai.feature.overlay
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -17,13 +18,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AddComment
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragIndicator
-import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -76,40 +79,50 @@ internal fun OverlayPanel(
 ) {
     var screen by remember { mutableStateOf(PanelScreen.CHAT) }
     OverlAiTheme {
-        Card(
-            modifier = Modifier.fillMaxWidth().fillMaxHeight(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        ) {
-            Column(modifier = Modifier.padding(10.dp).fillMaxHeight()) {
-                PanelHeader(
-                    screen = screen,
-                    actions =
-                        HeaderActions(
-                            onList = { screen = PanelScreen.LIST },
-                            onNew = {
-                                chat.newChat()
-                                screen = PanelScreen.CHAT
-                            },
-                            onModels = { screen = PanelScreen.MODELS },
-                            onBackToChat = { screen = PanelScreen.CHAT },
-                            onClose = onClose,
-                            onDrag = onHeaderDrag,
-                            onDragEnd = onHeaderDragEnd,
-                        ),
-                )
-                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    when (screen) {
-                        PanelScreen.LIST ->
-                            ListScreen(
-                                chat = chat,
-                                onOpen = { screen = PanelScreen.CHAT },
-                            )
-                        PanelScreen.CHAT -> ChatScreenContent(chat)
-                        PanelScreen.MODELS ->
-                            ModelsScreen(
-                                chat = chat,
-                                onDone = { screen = PanelScreen.CHAT },
-                            )
+        // Kräftiger Gold-Rahmen (Marken-Akzent) + Elevation: hebt das Overlay-Panel klar vom
+        // dahinterliegenden Fullscreen ab, dessen Hintergrund farblich identisch ist (P2.1c-
+        // Politur — Nutzer-Feedback: sonst keine optische Trennung Overlay ⟷ App). Außenrand
+        // (padding) im transluzenten Fenster, damit Rahmen UND Schatten frei sichtbar sind.
+        Box(modifier = Modifier.fillMaxWidth().fillMaxHeight().padding(6.dp)) {
+            Card(
+                modifier = Modifier.fillMaxWidth().fillMaxHeight(),
+                shape = MaterialTheme.shapes.large,
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary),
+                elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+            ) {
+                Column(modifier = Modifier.padding(10.dp).fillMaxHeight()) {
+                    PanelHeader(
+                        screen = screen,
+                        actions =
+                            HeaderActions(
+                                onList = { screen = PanelScreen.LIST },
+                                onNew = {
+                                    chat.newChat()
+                                    screen = PanelScreen.CHAT
+                                },
+                                onModels = { screen = PanelScreen.MODELS },
+                                onBackToChat = { screen = PanelScreen.CHAT },
+                                onClose = onClose,
+                                onDrag = onHeaderDrag,
+                                onDragEnd = onHeaderDragEnd,
+                            ),
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Box(modifier = Modifier.weight(1f).fillMaxWidth().padding(top = 6.dp)) {
+                        when (screen) {
+                            PanelScreen.LIST ->
+                                ListScreen(
+                                    chat = chat,
+                                    onOpen = { screen = PanelScreen.CHAT },
+                                )
+                            PanelScreen.CHAT -> ChatScreenContent(chat)
+                            PanelScreen.MODELS ->
+                                ModelsScreen(
+                                    chat = chat,
+                                    onDone = { screen = PanelScreen.CHAT },
+                                )
+                        }
                     }
                 }
             }
@@ -117,9 +130,9 @@ internal fun OverlayPanel(
     }
 }
 
-// Kompakte Kopfzeile: nur Icons. Links kontextabhängig (Liste bzw. Zurück-zu-Chat),
-// rechts Neu/Modelle/Schließen. Der Titel-Bereich in der Mitte ist ein Drag-Griff (P2.1c/D):
-// Ziehen verschiebt das Panel; beim Loslassen wandert die Bubble dorthin (zu → auf).
+// Kopfzeile: eindeutige, getönte Aktions-Buttons mit Mikro-Label (Icon allein war zu
+// mehrdeutig). Links kontextabhängig (Chats bzw. Zurück), Mitte = Drag-Griff (P2.1c/D),
+// rechts Neu/Modell/Schließen.
 @Composable
 private fun PanelHeader(
     screen: PanelScreen,
@@ -127,21 +140,18 @@ private fun PanelHeader(
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
     ) {
         if (screen == PanelScreen.CHAT) {
-            IconButton(onClick = actions.onList) {
-                Icon(Icons.AutoMirrored.Filled.List, contentDescription = "Chats")
-            }
+            HeaderAction(Icons.AutoMirrored.Filled.List, "Chats", actions.onList)
         } else {
-            IconButton(onClick = actions.onBackToChat) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Zurück zum Chat")
-            }
+            HeaderAction(Icons.AutoMirrored.Filled.ArrowBack, "Zurück", actions.onBackToChat)
         }
         // Drag-Griff: nur dieser mittlere Bereich reagiert auf Ziehen (Icons bleiben tippbar,
         // Chat-Scroll darunter kollidiert nicht).
         Row(
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
             modifier =
                 Modifier
                     .weight(1f)
@@ -158,19 +168,37 @@ private fun PanelHeader(
             Icon(
                 Icons.Filled.DragIndicator,
                 contentDescription = "Verschieben",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(end = 4.dp),
             )
             Text(text = "OverlAI", style = MaterialTheme.typography.titleSmall)
         }
-        IconButton(onClick = actions.onNew) {
-            Icon(Icons.Filled.Add, contentDescription = "Neuer Chat")
+        HeaderAction(Icons.Filled.AddComment, "Neu", actions.onNew)
+        HeaderAction(Icons.Filled.SmartToy, "Modell", actions.onModels)
+        HeaderAction(Icons.Filled.Close, "Zu", actions.onClose)
+    }
+}
+
+// Ein getönter, quadratischer Aktions-Button mit Mikro-Label darunter — klar abgegrenzte
+// Antippfläche statt „nacktem" Icon (Nutzer-Feedback: Icons uneindeutig/verschwommen).
+@Composable
+private fun HeaderAction(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.padding(horizontal = 2.dp),
+    ) {
+        FilledTonalIconButton(onClick = onClick, modifier = Modifier.size(40.dp)) {
+            Icon(icon, contentDescription = label)
         }
-        IconButton(onClick = actions.onModels) {
-            Icon(Icons.Filled.Tune, contentDescription = "Modell wählen")
-        }
-        IconButton(onClick = actions.onClose) {
-            Icon(Icons.Filled.Close, contentDescription = "Schließen")
-        }
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -217,9 +245,12 @@ private fun SessionRow(
 ) {
     val container =
         if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+    val borderColor =
+        if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
     Surface(
         color = container,
         shape = MaterialTheme.shapes.small,
+        border = BorderStroke(if (active) 2.dp else 1.dp, borderColor),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
@@ -369,6 +400,7 @@ private fun ProviderPicker(
             Surface(
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 shape = MaterialTheme.shapes.small,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 modifier = Modifier.fillMaxWidth().clickableRow { if (hasKey) onPick(p.id) },
             ) {
                 Row(
@@ -424,6 +456,7 @@ private fun ModelPicker(
                         Surface(
                             color = MaterialTheme.colorScheme.surfaceVariant,
                             shape = MaterialTheme.shapes.small,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                             modifier = Modifier.fillMaxWidth().clickableRow { onPick(m.id) },
                         ) {
                             Text(

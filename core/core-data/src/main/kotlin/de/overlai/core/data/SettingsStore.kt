@@ -71,7 +71,8 @@ class SettingsStore(
                         prefs[themeModeKey]
                             ?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() }
                             ?: ThemeMode.SYSTEM,
-                    useDynamicColor = prefs[dynamicColorKey] ?: true,
+                    // Default false (P2.1c): Marken-Palette greift sofort statt Systemfarbe.
+                    useDynamicColor = prefs[dynamicColorKey] ?: false,
                 )
             }.distinctUntilChanged()
 

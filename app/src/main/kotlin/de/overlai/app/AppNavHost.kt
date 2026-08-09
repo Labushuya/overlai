@@ -335,6 +335,7 @@ private fun PermissionsRoute(
     }
     PermissionHubScreen(
         state = state,
+        onBack = { navController.popBackStack() },
         onFix = { item ->
             when (item.id) {
                 "api_key" -> navController.navigate(SettingsRoutes.PROVIDER)
