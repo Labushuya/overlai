@@ -31,6 +31,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.overlai.conversation.ChatUiMessage
+import de.overlai.core.ui.components.ProviderModelChip
 import de.overlai.llm.Role
 
 // CHANGE-MARKER v0.1.0: Chat-UI (siehe CHANGELOG.md)
@@ -55,7 +56,15 @@ fun ChatScreen(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text("OverlAI · ${state.providerName}") },
+                title = {
+                    Column {
+                        Text("OverlAI", style = MaterialTheme.typography.titleMedium)
+                        ProviderModelChip(
+                            providerName = state.providerName,
+                            modelId = state.modelId,
+                        )
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Zurück")
