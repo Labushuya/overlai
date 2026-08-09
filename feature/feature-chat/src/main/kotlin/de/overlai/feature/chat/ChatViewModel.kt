@@ -55,7 +55,7 @@ class ChatViewModel(
 
     private var currentInput = ""
 
-    private val _state = MutableStateFlow(ChatUiState())
+    private val _state = MutableStateFlow(ChatUiState(modelId = modelId))
     val state: StateFlow<ChatUiState> = _state.asStateFlow()
 
     init {
