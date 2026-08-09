@@ -6,6 +6,15 @@ Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1
 die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 Dieser Changelog wird ab dem ersten Release von `release-please` gepflegt.
 
+## [0.7.0](https://github.com/Labushuya/overlai/compare/v0.6.1...v0.7.0) (2026-08-09)
+
+
+### Features
+
+* Multi-Chat-Persistenz (P2.1b) + Bubble-UX-Block & Marken-Politur (P2.1c) ([#35](https://github.com/Labushuya/overlai/issues/35)) ([ee8bd7a](https://github.com/Labushuya/overlai/commit/ee8bd7ad0832b4bb1cebe1f496a55e5811ee32ad))
+* **overlay:** Bubble-Snapping + Papierkorb (P2.2) + Debug-Icon/Updater ([#33](https://github.com/Labushuya/overlai/issues/33)) ([b6482d4](https://github.com/Labushuya/overlai/commit/b6482d4ea3c26d1e9380706e48363458301ca559))
+* **ui:** Farbpalette auf Blau-Schema umgestellt ([eb609fe](https://github.com/Labushuya/overlai/commit/eb609fe458adaec4fe0385801793f16ba83f9e65))
+
 ## [0.6.1](https://github.com/Labushuya/overlai/compare/v0.6.0...v0.6.1) (2026-08-01)
 
 
