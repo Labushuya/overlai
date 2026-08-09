@@ -1,32 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- CHANGE-MARKER: Debug-Variante des Marken-Icons (überschreibt main im Debug-Build).
-     Gleiches D4-Logo wie Release, plus ein Gold-Band unten mit "DEBUG"-Marker, damit die
-     parallel installierte Debug-App (de.overlai.app.debug) klar unterscheidbar ist. -->
+<!-- CHANGE-MARKER: Debug-Variante des Marken-Icons auf Blau-Palette (überschreibt main im
+     Debug-Build). Gleiches D4-Logo wie Release, plus ein Cyan-Band unten mit "DEBUG"-Marker,
+     damit die parallel installierte Debug-App (de.overlai.app.debug) klar unterscheidbar ist. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Gold-Ring "O" (etwas nach oben verschoben, um Platz fürs Debug-Band zu lassen). -->
+    <!-- Cyan-Ring "O" (etwas nach oben verschoben, um Platz fürs Debug-Band zu lassen). -->
     <path
-        android:fillColor="#D0BB3E"
+        android:fillColor="#2B8AB6"
         android:fillType="evenOdd"
         android:pathData="M52,22 a26,26 0 1,0 0.01,0 Z M52,33 a15,15 0 1,1 -0.01,0 Z" />
 
-    <!-- Slate-Halo + schwebender Punkt + Funke. -->
+    <!-- Dunkler Cyan-Halo + schwebender Punkt (helles Blau) + Cyan-Funke. -->
     <path
-        android:fillColor="#485956"
+        android:fillColor="#0E4A66"
         android:pathData="M70,30 m-11,0 a11,11 0 1,0 22,0 a11,11 0 1,0 -22,0 Z" />
     <path
-        android:fillColor="#EBEFEE"
+        android:fillColor="#DBE1FA"
         android:pathData="M70,30 m-8,0 a8,8 0 1,0 16,0 a8,8 0 1,0 -16,0 Z" />
     <path
-        android:fillColor="#D0BB3E"
+        android:fillColor="#2B8AB6"
         android:pathData="M70,30 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0 Z" />
 
-    <!-- Debug-Band unten (Gold), damit die Variante sofort erkennbar ist. -->
+    <!-- Debug-Band unten (Cyan), damit die Variante sofort erkennbar ist. -->
     <path
-        android:fillColor="#D0BB3E"
+        android:fillColor="#2B8AB6"
         android:pathData="M28,82 h52 v14 h-52 Z" />
 </vector>

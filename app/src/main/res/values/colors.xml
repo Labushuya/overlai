@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Adaptive-Icon-Hintergrund = Marken-Slate (Logo D4). Wird auch als Splash-
-         Hintergrund genutzt (themes.xml) — konsistent mit dem neuen Look. -->
-    <color name="ic_launcher_background">#485956</color>
+    <!-- Adaptive-Icon-Hintergrund = Marken-Tiefblau (Blau-Palette 142C96). Wird auch als
+         Splash-Hintergrund genutzt (themes.xml) — konsistent mit dem App-Theme. -->
+    <color name="ic_launcher_background">#142C96</color>
 </resources>
