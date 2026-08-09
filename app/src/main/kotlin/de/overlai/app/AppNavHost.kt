@@ -16,6 +16,8 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import de.overlai.core.ui.util.OnResume
+import de.overlai.feature.chat.ChatListScreen
+import de.overlai.feature.chat.ChatListViewModel
 import de.overlai.feature.chat.ChatScreen
 import de.overlai.feature.chat.ChatViewModel
 import de.overlai.feature.onboarding.ProviderHubScreen
@@ -42,7 +44,10 @@ import kotlinx.coroutines.launch
 // Zentraler Navigations-Graph. Alle Screens werden hier verdrahtet; die
 // feature-Module kennen einander nicht (Komposition nur hier in :app).
 object Routes {
-    const val CHAT = "chat"
+    const val CHAT = "chat" // Chat-Liste (Tab-Root)
+    const val CHAT_DETAIL = "chat/{sessionId}" // einzelner Chat
+
+    fun chatDetail(sessionId: String) = "chat/$sessionId"
 }
 
 @Composable
@@ -57,7 +62,14 @@ fun AppNavHost(
         modifier = modifier,
     ) {
         composable(Routes.CHAT) {
-            ChatRoute(deps, navController)
+            ChatListRoute(deps, navController)
+        }
+
+        composable(Routes.CHAT_DETAIL) { backStackEntry ->
+            val sessionId = backStackEntry.arguments?.getString("sessionId")
+            if (sessionId != null) {
+                ChatRoute(deps, navController, sessionId)
+            }
         }
 
         composable(SettingsRoutes.HOME) {
@@ -99,9 +111,9 @@ fun AppNavHost(
                             simpleFactory {
                                 UpdateViewModel(
                                     currentVersion = deps.versionName,
-                                    checker = deps.updateChecker,
-                                    downloader = deps.apkDownloader,
-                                    installer = deps.packageInstaller,
+                                    checker = deps.updater.checker,
+                                    downloader = deps.updater.downloader,
+                                    installer = deps.updater.installer,
                                 )
                             },
                     )
@@ -133,9 +145,10 @@ fun AppNavHost(
     }
 }
 
-// Overlay-Bubble-Toggle: hält Enabled-Wunsch (SettingsStore) + Live-Permission-Status
-// und steuert den Foreground-Service. Permission-Check + Service-Start liegen hier in
-// :app (das Feature-Modul bleibt UI-only).
+// Overlay-Bubble-Toggle: hält Enabled-Wunsch (SettingsStore) + Live-Permission-Status.
+// P2.1c: Toggle ist von der Berechtigung ENTKOPPELT — der Wunsch wird immer gespeichert;
+// der Service startet nur, wenn die Berechtigung da ist. „Zum Berechtigungs-Menü" navigiert
+// ins gebündelte Permission-Menü (kein direkter Grant-Intent mehr hier).
 @Composable
 private fun OverlayRoute(
     deps: AppDependencies,
@@ -145,10 +158,15 @@ private fun OverlayRoute(
     val scope = rememberCoroutineScope()
     var enabled by remember { mutableStateOf(false) }
     var hasPermission by remember { mutableStateOf(false) }
-    // Nach Rückkehr aus den System-Einstellungen (Permission erteilt) neu einlesen.
+    // Nach Rückkehr aus den System-Einstellungen (Permission erteilt) neu einlesen. Erteilt der
+    // Nutzer die Berechtigung und die Bubble war gewünscht, den Service jetzt nachstarten —
+    // aber den Toggle NICHT umschalten (Berechtigung ≠ Aktion).
     OnResume {
         hasPermission = PermissionChecks.canDrawOverlays(context)
-        scope.launch { enabled = deps.settingsStore.overlayEnabled.first() }
+        scope.launch {
+            enabled = deps.settingsStore.overlayEnabled.first()
+            if (enabled && hasPermission) OverlayService.start(context)
+        }
     }
     OverlaySettingsScreen(
         enabled = enabled,
@@ -156,32 +174,33 @@ private fun OverlayRoute(
         onToggle = { wanted ->
             enabled = wanted
             scope.launch { deps.settingsStore.setOverlayEnabled(wanted) }
-            if (wanted) OverlayService.start(context) else OverlayService.stop(context)
+            // Service nur starten, wenn die Berechtigung da ist; sonst bleibt der Wunsch
+            // gespeichert und die Bubble erscheint, sobald die Berechtigung erteilt wurde.
+            if (wanted && hasPermission) {
+                OverlayService.start(context)
+            } else if (!wanted) {
+                OverlayService.stop(context)
+            }
         },
-        onRequestPermission = {
-            context.startActivity(PermissionChecks.overlayPermissionIntent(context))
+        onOpenPermissions = {
+            navController.navigate(SettingsRoutes.PERMISSIONS)
         },
         onBack = { navController.popBackStack() },
     )
 }
 
-// Chat-Route: ViewModel + First-run-Routing ins Provider-Setup.
+// Chat-Liste (Tab-Root): Sessions verwalten. First-run-Routing ins Provider-Setup.
 @Composable
-private fun ChatRoute(
+private fun ChatListRoute(
     deps: AppDependencies,
     navController: NavHostController,
 ) {
     val vm =
-        viewModel<ChatViewModel>(
-            factory =
-                simpleFactory {
-                    ChatViewModel(engine = deps.conversationEngine)
-                },
+        viewModel<ChatListViewModel>(
+            factory = simpleFactory { ChatListViewModel(deps.sessionRepository, deps.settingsStore) },
         )
-    // First-run: einmalig ins Provider-Setup routen, wenn noch kein Key +
-    // Onboarding noch nie gezeigt. Flag persistiert, damit es einmalig bleibt.
+    // First-run: einmalig ins Provider-Setup routen, wenn noch kein Key + Onboarding nie gezeigt.
     LaunchedEffect(Unit) {
-        vm.refreshActiveProvider()
         val shown = deps.settingsStore.onboardingShown.first()
         val activeId = deps.settingsStore.activeProviderId.first()
         if (!shown && !deps.keyVault.hasKey(activeId)) {
@@ -189,9 +208,44 @@ private fun ChatRoute(
             navController.navigate(SettingsRoutes.PROVIDER)
         }
     }
+    ChatListScreen(
+        viewModel = vm,
+        onOpenSession = { sessionId -> navController.navigate(Routes.chatDetail(sessionId)) },
+    )
+}
+
+// Einzelner Chat (persistente Session mit eigenem Provider/Modell + Verlauf).
+@Composable
+private fun ChatRoute(
+    deps: AppDependencies,
+    navController: NavHostController,
+    sessionId: String,
+) {
+    // Session-Metadaten (Provider/Modell) laden, dann das ViewModel damit bauen. Bis geladen:
+    // nichts rendern (kurzer Moment). key(sessionId) → bei Wechsel neues VM.
+    var meta by remember(sessionId) { mutableStateOf<de.overlai.core.data.chat.ChatSession?>(null) }
+    LaunchedEffect(sessionId) {
+        meta = deps.sessionRepository.getSession(sessionId)
+    }
+    val session = meta ?: return
+    val vm =
+        viewModel<ChatViewModel>(
+            key = sessionId,
+            factory =
+                simpleFactory {
+                    ChatViewModel(
+                        engine = deps.conversationEngine,
+                        repo = deps.sessionRepository,
+                        sessionId = session.id,
+                        providerId = session.providerId,
+                        modelId = session.modelId,
+                    )
+                },
+        )
     ChatScreen(
         viewModel = vm,
         onOpenOnboarding = { navController.navigate(SettingsRoutes.PROVIDER) },
+        onBack = { navController.popBackStack() },
     )
 }
 
@@ -250,17 +304,30 @@ private fun PermissionsRoute(
                                 rationale = "Nötig, damit der In-App-Updater neue Versionen installieren kann.",
                                 granted = PermissionChecks.canInstallPackages(context),
                             ),
+                            // --- Bubble-Berechtigungen gebündelt (P2.1c) ---
+                            PermissionItem(
+                                id = "overlay",
+                                title = "Bubble: Über anderen Apps anzeigen",
+                                rationale = "Pflicht für die Overlay-Bubble — blendet OverlAI über anderen Apps ein.",
+                                granted = PermissionChecks.canDrawOverlays(context),
+                            ),
                             PermissionItem(
                                 id = "notifications",
-                                title = "Benachrichtigungen",
-                                rationale = "Für Update- und Download-Hinweise.",
+                                title = "Bubble: Benachrichtigungen",
+                                rationale =
+                                    "Die Bubble läuft als Vordergrund-Dienst und braucht dafür eine " +
+                                        "Benachrichtigung. Außerdem für Update-Hinweise.",
                                 granted = PermissionChecks.notificationsEnabled(context),
                             ),
                             PermissionItem(
-                                id = "overlay",
-                                title = "Über anderen Apps anzeigen",
-                                rationale = "Nötig für die Overlay-Bubble, die OverlAI über anderen Apps einblendet.",
-                                granted = PermissionChecks.canDrawOverlays(context),
+                                id = "floating_window_hint",
+                                title = "Bubble: „Schwebefenster\" (geräteabhängig)",
+                                rationale =
+                                    "Manche Hersteller (z.B. Honor/Huawei EMUI, Xiaomi) verstecken zusätzlich " +
+                                        "einen „Schwebefenster\"-Schalter pro App. Bleibt die Bubble trotz erteilter " +
+                                        "Berechtigung unsichtbar, aktiviere ihn in den System-App-Infos.",
+                                granted = false,
+                                isInfo = true,
                             ),
                         ),
                 )
@@ -268,6 +335,7 @@ private fun PermissionsRoute(
     }
     PermissionHubScreen(
         state = state,
+        onBack = { navController.popBackStack() },
         onFix = { item ->
             when (item.id) {
                 "api_key" -> navController.navigate(SettingsRoutes.PROVIDER)

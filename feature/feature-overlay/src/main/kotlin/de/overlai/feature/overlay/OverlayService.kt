@@ -33,11 +33,15 @@ class OverlayService : Service() {
     // aktualisieren Compose-State). In onDestroy gecancelt.
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val chatState: OverlayChatState by lazy {
-        val engine =
-            EntryPointAccessors
-                .fromApplication(applicationContext, OverlayDependencies::class.java)
-                .conversationEngine()
-        OverlayChatState(engine, serviceScope)
+        val deps = EntryPointAccessors.fromApplication(applicationContext, OverlayDependencies::class.java)
+        OverlayChatState(
+            engine = deps.conversationEngine(),
+            scope = serviceScope,
+            repo = deps.sessionRepository(),
+            settingsStore = deps.settingsStore(),
+            keyVault = deps.keyVault(),
+            modelCatalog = deps.modelCatalog(),
+        )
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

@@ -14,28 +14,68 @@ import androidx.compose.ui.platform.LocalContext
 import de.overlai.common.ThemeMode
 import de.overlai.common.ThemePreferences
 
-// CHANGE-MARKER v0.2.1: Theme-Präferenzen (siehe CHANGELOG.md)
-// OverlAI Material-3-Theme. Nimmt jetzt einen aufgelösten ThemePreferences-Snapshot
-// (nicht mehr rohe Booleans) — der Aufrufer (MainActivity/Entry-Activities) sammelt
-// die Präferenz aus dem SettingsStore und reicht sie herein.
+// CHANGE-MARKER: Marken-Palette (P2.1c-Politur, siehe CHANGELOG.md)
+// OverlAI Material-3-Theme mit VOLLEM Marken-Farbschema aus der Logo-Palette
+// (Gold D0BB3E, Grün-Grau 485956, Off-White EBEFEE) — nicht mehr nur 3 Rollen auf
+// M3-Default-Grau ("schwarze Masse"). Alle Flächen/Container sind gesetzt, damit die
+// Palette durchgängig sichtbar ist. Dynamic Color ist jetzt Opt-in (Default aus), sonst
+// überschrieb die Systemfarbe die Marke. Nimmt einen aufgelösten ThemePreferences-Snapshot.
 
-// Marken-Fallback (falls kein dynamic color): ruhiges Indigo/Teal, "AI-assistant"-Ton.
-private val BrandPrimary = Color(0xFF4C5BD4)
-private val BrandSecondary = Color(0xFF00A6A6)
-private val BrandTertiary = Color(0xFF7C4DFF)
+// --- Logo-Palette ---
+private val BrandGold = Color(0xFFD0BB3E) // primär: Akzent, Buttons, aktive Zustände
+private val BrandGoldDark = Color(0xFF8A7A1F) // dunklerer Gold-Ton (Text auf Gold, dark scheme)
+private val BrandGreen = Color(0xFF485956) // sekundär: Grün-Grau, ruhige Flächen
+private val BrandGreenDark = Color(0xFF2B3634) // dunklere Variante
+private val BrandGreenLight = Color(0xFFCDD6D3) // heller Grün-Grau-Ton (Container hell)
+private val BrandOffWhite = Color(0xFFEBEFEE) // helle Flächen (background/surface)
+private val BrandInk = Color(0xFF1B211F) // Text/dunkle Flächen (kein reines Schwarz)
 
 private val LightColors =
     lightColorScheme(
-        primary = BrandPrimary,
-        secondary = BrandSecondary,
-        tertiary = BrandTertiary,
+        primary = BrandGold,
+        onPrimary = BrandInk,
+        primaryContainer = Color(0xFFF3E9B8),
+        onPrimaryContainer = BrandGoldDark,
+        secondary = BrandGreen,
+        onSecondary = BrandOffWhite,
+        secondaryContainer = BrandGreenLight,
+        onSecondaryContainer = BrandGreenDark,
+        tertiary = BrandGreenDark,
+        onTertiary = BrandOffWhite,
+        tertiaryContainer = BrandGreenLight,
+        onTertiaryContainer = BrandGreenDark,
+        background = BrandOffWhite,
+        onBackground = BrandInk,
+        surface = Color(0xFFF6F8F7),
+        onSurface = BrandInk,
+        surfaceVariant = BrandGreenLight,
+        onSurfaceVariant = BrandGreenDark,
+        outline = BrandGreen,
+        outlineVariant = Color(0xFFAEBAB6),
     )
 
 private val DarkColors =
     darkColorScheme(
-        primary = BrandPrimary,
-        secondary = BrandSecondary,
-        tertiary = BrandTertiary,
+        primary = BrandGold,
+        onPrimary = BrandInk,
+        primaryContainer = BrandGoldDark,
+        onPrimaryContainer = Color(0xFFF3E9B8),
+        secondary = BrandGreenLight,
+        onSecondary = BrandGreenDark,
+        secondaryContainer = BrandGreen,
+        onSecondaryContainer = BrandOffWhite,
+        tertiary = BrandGreenLight,
+        onTertiary = BrandGreenDark,
+        tertiaryContainer = BrandGreen,
+        onTertiaryContainer = BrandOffWhite,
+        background = BrandInk,
+        onBackground = BrandOffWhite,
+        surface = Color(0xFF242C2A),
+        onSurface = BrandOffWhite,
+        surfaceVariant = BrandGreenDark,
+        onSurfaceVariant = BrandGreenLight,
+        outline = BrandGreenLight,
+        outlineVariant = BrandGreen,
     )
 
 @Composable

@@ -41,6 +41,9 @@ internal class OverlayWindowController(
     private var panelView: ComposeView? = null
     private var panelOwner: OverlayLifecycleOwner? = null
 
+    // P2.1c/D: aktuelle Panel-Fensterparameter (für Header-Drag → Reposition).
+    private var panelParams: WindowManager.LayoutParams? = null
+
     // Papierkorb-Zone — nur während eines Drags am Fenster. Highlight via State (Hit-Test).
     private var trashView: ComposeView? = null
     private var trashOwner: OverlayLifecycleOwner? = null
@@ -131,10 +134,15 @@ internal class OverlayWindowController(
     private fun showPanel() {
         if (panelView != null) return
 
+        // P2.1c: Panel ist jetzt Vollsteuerung (Liste/Chat/Modelle) → deutlich größer.
+        // Breite ~0.92, Höhe bis ~70% Screen (feste Pixel statt WRAP_CONTENT, damit die
+        // interne LazyColumn eine begrenzte Höhe hat und scrollen kann).
+        val panelW = (context.resources.displayMetrics.widthPixels * PANEL_WIDTH_FRACTION).toInt()
+        val panelH = (context.resources.displayMetrics.heightPixels * PANEL_HEIGHT_FRACTION).toInt()
         val params =
             WindowManager.LayoutParams(
-                (context.resources.displayMetrics.widthPixels * 0.86f).toInt(),
-                WindowManager.LayoutParams.WRAP_CONTENT,
+                panelW,
+                panelH,
                 overlayType,
                 // Das Panel MUSS fokussierbar sein (Texteingabe/IME) — daher KEIN
                 // NOT_FOCUSABLE. WATCH_OUTSIDE_TOUCH lässt uns einen Tipp außerhalb
@@ -143,15 +151,28 @@ internal class OverlayWindowController(
                 PixelFormat.TRANSLUCENT,
             ).apply {
                 gravity = Gravity.TOP or Gravity.START
-                x = 0
-                y = if (::bubbleParams.isInitialized) bubbleParams.y + 160 else 360
+                // On-screen halten: neben/unter der Bubble, aber nie über den Rand hinaus.
+                x = if (::bubbleParams.isInitialized) bubbleParams.x else 0
+                y = if (::bubbleParams.isInitialized) bubbleParams.y + dpToPx(64f) else 360
             }
+        clampPanel(params)
+        panelParams = params
 
         val owner = OverlayLifecycleOwner()
         val view =
             ComposeView(context).apply {
                 setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnLifecycleDestroyed(owner))
-                setContent { OverlayPanel(chat = chatState, onClose = ::removePanel) }
+                setContent {
+                    OverlayPanel(
+                        chat = chatState,
+                        onClose = ::removePanel,
+                        // P2.1c/D: Drag am Header verschiebt das Panel-Fenster live …
+                        onHeaderDrag = { dx, dy -> movePanelBy(dx, dy) },
+                        // … und beim Loslassen wandert die Bubble an die Panel-Position,
+                        // snappt an den Rand und das Panel öffnet dort erneut (zu → auf).
+                        onHeaderDragEnd = { repositionBubbleToPanelThenReopen() },
+                    )
+                }
             }
         owner.attachTo(view)
         // Außentipp schließt das Panel (Bubble bleibt).
@@ -179,6 +200,34 @@ internal class OverlayWindowController(
         panelOwner?.destroy()
         panelView = null
         panelOwner = null
+        panelParams = null
+    }
+
+    // P2.1c/D: Panel-Fenster live um (dx,dy) verschieben (Header-Drag), on-screen geclampt.
+    private fun movePanelBy(
+        dx: Int,
+        dy: Int,
+    ) {
+        val params = panelParams ?: return
+        val view = panelView ?: return
+        params.x += dx
+        params.y += dy
+        clampPanel(params)
+        if (view.isAttachedToWindow) windowManager.updateViewLayout(view, params)
+    }
+
+    // P2.1c/D: Beim Loslassen des Header-Drags die Bubble an die (obere) Panel-Position setzen,
+    // an den Rand snappen, Panel schließen und dort erneut öffnen (Bubble geht zu → auf).
+    private fun repositionBubbleToPanelThenReopen() {
+        val params = panelParams ?: return
+        if (::bubbleParams.isInitialized) {
+            bubbleParams.x = clampX(params.x)
+            bubbleParams.y = clampY(params.y)
+            bubbleView?.let { if (it.isAttachedToWindow) windowManager.updateViewLayout(it, bubbleParams) }
+        }
+        removePanel()
+        snapToEdge()
+        showPanel()
     }
 
     // Alles abräumen (Service-Stop). Reihenfolge: Snap-Animation, Trash, Panel, Bubble.
@@ -267,6 +316,14 @@ internal class OverlayWindowController(
     private fun clampY(y: Int): Int =
         y.coerceIn(statusBarHeight(), (screenHeight() - dpToPx(BUBBLE_SIZE_DP)).coerceAtLeast(statusBarHeight()))
 
+    // Panel on-screen halten (horizontal + vertikal), damit es bei randnaher Bubble nicht
+    // teils außerhalb landet. Clampt direkt auf dem übergebenen params-Objekt.
+    private fun clampPanel(params: WindowManager.LayoutParams) {
+        params.x = params.x.coerceIn(0, (screenWidth() - params.width).coerceAtLeast(0))
+        val minY = statusBarHeight()
+        params.y = params.y.coerceIn(minY, (screenHeight() - params.height).coerceAtLeast(minY))
+    }
+
     // Beim Loslassen an den näheren horizontalen Rand animieren (ValueAnimator, Main-Thread).
     private fun snapToEdge() {
         if (!::bubbleParams.isInitialized) return
@@ -321,5 +378,9 @@ internal class OverlayWindowController(
         const val TRASH_CENTER_FROM_BOTTOM_DP = 40f
 
         const val SNAP_DURATION_MS = 220L
+
+        // P2.1c: Panel-Fenstergröße als Bruchteil des Bildschirms (Vollsteuerung).
+        const val PANEL_WIDTH_FRACTION = 0.92f
+        const val PANEL_HEIGHT_FRACTION = 0.70f
     }
 }

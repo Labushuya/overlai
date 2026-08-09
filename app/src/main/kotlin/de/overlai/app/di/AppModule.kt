@@ -8,6 +8,8 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import de.overlai.conversation.ConversationEngine
 import de.overlai.core.data.SettingsStore
+import de.overlai.core.data.chat.ChatDatabaseFactory
+import de.overlai.core.data.chat.SessionRepository
 import de.overlai.feature.updater.ApkDownloader
 import de.overlai.feature.updater.PackageInstallerSession
 import de.overlai.feature.updater.UpdateChecker
@@ -85,4 +87,12 @@ object AppModule {
     @Singleton
     fun provideModelCatalog(client: OkHttpClient): HttpModelCatalog =
         HttpModelCatalog(client, ProviderFactory.defaultJson())
+
+    // Multi-Chat-Persistenz (P2.1b): Session-Repository (Room in core-data gekapselt —
+    // :app kennt keine Room-Typen, nur die Factory + das Repository).
+    @Provides
+    @Singleton
+    fun provideSessionRepository(
+        @ApplicationContext context: Context,
+    ): SessionRepository = ChatDatabaseFactory.createRepository(context)
 }

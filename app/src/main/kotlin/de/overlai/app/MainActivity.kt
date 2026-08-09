@@ -30,6 +30,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import de.overlai.common.ThemePreferences
 import de.overlai.conversation.ConversationEngine
 import de.overlai.core.data.SettingsStore
+import de.overlai.core.data.chat.SessionRepository
 import de.overlai.core.ui.theme.OverlAiTheme
 import de.overlai.feature.overlay.OverlayService
 import de.overlai.feature.permissions.PermissionChecks
@@ -66,6 +67,8 @@ class MainActivity : ComponentActivity() {
 
     @Inject lateinit var conversationEngine: ConversationEngine
 
+    @Inject lateinit var sessionRepository: SessionRepository
+
     // Vor dem ersten Frame gesetzt; Splash hält, solange null.
     private val themeState = MutableStateFlow<ThemePreferences?>(null)
 
@@ -101,11 +104,10 @@ class MainActivity : ComponentActivity() {
                         keyVault = keyVault,
                         providerFactory = providerFactory,
                         settingsStore = settingsStore,
-                        updateChecker = updateChecker,
-                        apkDownloader = apkDownloader,
-                        packageInstaller = packageInstaller,
+                        updater = UpdaterBundle(updateChecker, apkDownloader, packageInstaller),
                         modelCatalog = modelCatalog,
                         conversationEngine = conversationEngine,
+                        sessionRepository = sessionRepository,
                         versionName = versionName(),
                     ),
             )
@@ -123,12 +125,19 @@ class AppDependencies(
     val keyVault: KeyVault,
     val providerFactory: ProviderFactory,
     val settingsStore: SettingsStore,
-    val updateChecker: UpdateChecker,
-    val apkDownloader: ApkDownloader,
-    val packageInstaller: PackageInstallerSession,
+    val updater: UpdaterBundle,
     val modelCatalog: HttpModelCatalog,
     val conversationEngine: ConversationEngine,
+    val sessionRepository: SessionRepository,
     val versionName: String,
+)
+
+// Die drei Updater-Bausteine (nur von der Updates-Route gebraucht) — gebündelt, damit
+// AppDependencies nicht überläuft.
+class UpdaterBundle(
+    val checker: UpdateChecker,
+    val downloader: ApkDownloader,
+    val installer: PackageInstallerSession,
 )
 
 // Tabs der Bottom-Navigation.
