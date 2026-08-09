@@ -6,6 +6,13 @@ Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1
 die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 Dieser Changelog wird ab dem ersten Release von `release-please` gepflegt.
 
+## [0.7.2](https://github.com/Labushuya/overlai/compare/v0.7.1...v0.7.2) (2026-08-09)
+
+
+### Bug Fixes
+
+* **ui:** Marken-Palette immer anwenden — Dynamic Color entfernt ([092fc32](https://github.com/Labushuya/overlai/commit/092fc32eed6c75f58c62335f02cb2b00b1af77c7))
+
 ## [0.7.1](https://github.com/Labushuya/overlai/compare/v0.7.0...v0.7.1) (2026-08-09)
 
 
