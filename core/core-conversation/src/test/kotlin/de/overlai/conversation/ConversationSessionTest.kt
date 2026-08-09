@@ -4,7 +4,9 @@ import com.google.common.truth.Truth.assertThat
 import de.overlai.llm.ChatMessage
 import de.overlai.llm.Role
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -120,5 +122,35 @@ class ConversationSessionTest {
             assertThat(session.state.value.messages).hasSize(1)
             assertThat(session.state.value.messages[0].text).contains("Kein API-Key")
             assertThat(session.state.value.messages[0].text).contains("TestProvider")
+        }
+
+    // P2.1c: Reaktivität — eine Änderung am persistierten Verlauf (Room-Flow) muss LIVE in den
+    // State propagieren (ohne raus/rein). Fake-Persistenz mit steuerbarem observeHistory-Flow.
+    @Test
+    fun `observeHistory-Aenderung propagiert live in den State`() =
+        runTest {
+            val history = MutableStateFlow<List<ChatUiMessage>>(emptyList())
+            val persistence =
+                object : ConversationSession.Persistence {
+                    override fun observeHistory(): Flow<List<ChatUiMessage>> = history
+
+                    override suspend fun onUserMessage(text: String) = Unit
+
+                    override suspend fun onAssistantMessage(text: String) = Unit
+                }
+            val session = ConversationSession(FakeStreamer(emptyList()), this, persistence)
+            advanceUntilIdle()
+            assertThat(session.state.value.messages).isEmpty()
+
+            // Verlauf ändert sich in der DB → State folgt sofort (im Ruhezustand ist die DB Wahrheit).
+            history.value = listOf(ChatUiMessage(Role.USER, "hallo"), ChatUiMessage(Role.ASSISTANT, "hi"))
+            advanceUntilIdle()
+
+            assertThat(session.state.value.messages).hasSize(2)
+            assertThat(session.state.value.messages[0].text).isEqualTo("hallo")
+            assertThat(session.state.value.messages[1].text).isEqualTo("hi")
+
+            // Die endlose observeHistory-Collect-Coroutine beenden, sonst meckert runTest.
+            coroutineContext.cancelChildren()
         }
 }

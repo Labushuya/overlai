@@ -23,17 +23,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
-// CHANGE-MARKER v0.5.2: Overlay-Bubble (M3, siehe CHANGELOG.md)
+// CHANGE-MARKER: Bubble-UX-Block (P2.1c, siehe CHANGELOG.md)
 // Ein/Aus-Schalter der Overlay-Bubble. Bewusst stateless: der Screen kennt nur den
 // aktuellen Zustand + die Permission-Lage und meldet Wünsche per Callback nach oben.
 // Permission-Check und Service-Start/Stop passieren in :app (kein feature->feature).
+// P2.1c: Toggle ist UNABHÄNGIG von der Berechtigung — der Wunsch „Bubble an" wird immer
+// gespeichert; fehlt die Berechtigung, erscheint nur ein Hinweis mit Weg ins Berechtigungs-
+// Menü. Erteilen/Entziehen der Berechtigung schaltet die Bubble also nicht mehr um.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OverlaySettingsScreen(
     enabled: Boolean,
     hasOverlayPermission: Boolean,
     onToggle: (Boolean) -> Unit,
-    onRequestPermission: () -> Unit,
+    onOpenPermissions: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -66,22 +69,24 @@ fun OverlaySettingsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                // Immer bedienbar — die Berechtigung ist davon entkoppelt (siehe Header).
                 Switch(
                     checked = enabled,
                     onCheckedChange = onToggle,
-                    // Ohne Overlay-Berechtigung lässt sich die Bubble nicht einschalten.
-                    enabled = hasOverlayPermission,
                 )
             }
 
-            if (!hasOverlayPermission) {
+            // Nur ein Hinweis (kein Sperren des Toggles): die Bubble erscheint erst, wenn die
+            // Berechtigung im Berechtigungs-Menü erteilt ist. Der Toggle-Wunsch bleibt gewahrt.
+            if (enabled && !hasOverlayPermission) {
                 Text(
-                    "Dafür braucht OverlAI die Berechtigung „Über anderen Apps anzeigen\".",
+                    "Die Bubble erscheint erst, wenn die Berechtigung „Über anderen Apps anzeigen\" " +
+                        "erteilt ist. Alle Bubble-Berechtigungen findest du im Berechtigungs-Menü.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.error,
                 )
-                Button(onClick = onRequestPermission) {
-                    Text("Berechtigung erteilen")
+                Button(onClick = onOpenPermissions) {
+                    Text("Zum Berechtigungs-Menü")
                 }
             }
         }

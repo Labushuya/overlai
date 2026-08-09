@@ -25,6 +25,9 @@ import kotlinx.coroutines.launch
 class ConversationSession(
     private val streamer: Streamer,
     private val scope: CoroutineScope,
+    // Optionale Persistenz. null = flüchtig (nur im Speicher, wie P2.1a). Gesetzt =
+    // Verlauf beim Start laden + jede abgeschlossene Nachricht speichern (P2.1b Multi-Chat).
+    private val persistence: Persistence? = null,
 ) {
     // Was die Session von der Engine braucht — ConversationEngine implementiert es.
     interface Streamer {
@@ -33,6 +36,18 @@ class ConversationSession(
         suspend fun providerDisplayName(): String
 
         suspend fun hasKey(): Boolean
+    }
+
+    // Schmale Persistenz-Schnittstelle (DI-frei; die Room-Anbindung liefert :app/Overlay).
+    // Entkoppelt core-conversation vom konkreten SessionRepository/Room (keine Zirkularität).
+    interface Persistence {
+        // Reaktiv: emittiert bei jeder Änderung am persistierten Verlauf (Room-Flow). Default
+        // leer für flüchtige Sessions.
+        fun observeHistory(): Flow<List<ChatUiMessage>> = kotlinx.coroutines.flow.flowOf(emptyList())
+
+        suspend fun onUserMessage(text: String)
+
+        suspend fun onAssistantMessage(text: String)
     }
 
     data class State(
@@ -45,6 +60,21 @@ class ConversationSession(
     val state: StateFlow<State> = _state.asStateFlow()
 
     private var streamJob: Job? = null
+
+    init {
+        // Persistierten Verlauf reaktiv beobachten (falls Persistenz gesetzt). Während des
+        // Streamens NICHT übernehmen — sonst überschreibt der DB-Snapshot die laufende,
+        // noch nicht persistierte Assistant-Bubble. Im Ruhezustand ist die DB die Wahrheit.
+        persistence?.let { p ->
+            scope.launch {
+                p.observeHistory().collect { persisted ->
+                    if (!_state.value.isStreaming) {
+                        _state.value = _state.value.copy(messages = persisted)
+                    }
+                }
+            }
+        }
+    }
 
     // Nutzer-Nachricht senden + Antwort streamen. No-Op bei leerer Eingabe oder während
     // bereits gestreamt wird.
@@ -62,6 +92,8 @@ class ConversationSession(
                 isStreaming = true,
                 error = null,
             )
+        // User-Nachricht sofort persistieren.
+        persistence?.let { p -> scope.launch { p.onUserMessage(text) } }
 
         // Verlauf für die Engine: abgeschlossene Nachrichten (leere streamende Bubble raus).
         val history =
@@ -83,16 +115,26 @@ class ConversationSession(
                         is ConversationEngine.Event.Failed ->
                             updateLastAssistant(event.message, streaming = false)
                     }
-                }.onCompletion {
-                    // Streaming-Flag der letzten Assistant-Bubble löschen (Erfolg/Fehler/Abbruch).
-                    val last = _state.value.messages.lastOrNull()
-                    if (last != null && last.role == Role.ASSISTANT && last.streaming) {
-                        val shown = last.text.ifEmpty { "(abgebrochen)" }
-                        updateLastAssistant(shown, streaming = false)
-                    }
-                    _state.value = _state.value.copy(isStreaming = false)
-                }.launchIn(scope)
+                }.onCompletion { finishTurn() }
+                .launchIn(scope)
     }
+
+    // Turn-Abschluss (Erfolg/Fehler/Abbruch): Streaming-Flag der letzten Assistant-Bubble
+    // löschen, isStreaming zurücksetzen, fertige Antwort persistieren (nicht pro Delta).
+    private suspend fun finishTurn() {
+        val last = _state.value.messages.lastOrNull()
+        if (last != null && last.role == Role.ASSISTANT && last.streaming) {
+            updateLastAssistant(last.text.ifEmpty { "(abgebrochen)" }, streaming = false)
+        }
+        _state.value = _state.value.copy(isStreaming = false)
+        val done = _state.value.messages.lastOrNull()
+        if (persistence != null && done.isPersistableAssistant()) {
+            persistence.onAssistantMessage(done!!.text)
+        }
+    }
+
+    private fun ChatUiMessage?.isPersistableAssistant(): Boolean =
+        this != null && role == Role.ASSISTANT && text.isNotEmpty()
 
     // Laufenden Stream abbrechen (Stopp-Button). onCompletion räumt das Flag ab.
     fun cancel() {

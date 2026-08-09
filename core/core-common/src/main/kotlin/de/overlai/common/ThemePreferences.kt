@@ -7,7 +7,8 @@ enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
 data class ThemePreferences(
     val mode: ThemeMode = ThemeMode.SYSTEM,
-    // Default true = heutiges Verhalten (Material You ab Android 12); Bestands-User
-    // sehen beim Update keine Farbänderung.
-    val useDynamicColor: Boolean = true,
+    // Default false (P2.1c): das OverlAI-Marken-Farbschema (Gold/Grün-Grau/Off-White) greift
+    // sofort, statt von der dynamischen Systemfarbe („schwarze Masse") überschrieben zu werden.
+    // Material You bleibt als bewusstes Opt-in erhalten.
+    val useDynamicColor: Boolean = false,
 )
