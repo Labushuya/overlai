@@ -1,16 +1,11 @@
 package de.overlai.core.ui.theme
 
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import de.overlai.common.ThemeMode
 import de.overlai.common.ThemePreferences
 
@@ -94,17 +89,11 @@ fun OverlAiTheme(
             ThemeMode.LIGHT -> false
             ThemeMode.DARK -> true
         }
-    val context = LocalContext.current
-    // Memoisiert: dynamic*ColorScheme allokiert; nur bei Änderung von prefs/dark neu.
-    val colorScheme =
-        remember(prefs, dark) {
-            when {
-                prefs.useDynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
-                    if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-                dark -> DarkColors
-                else -> LightColors
-            }
-        }
+    // Immer das Marken-Farbschema (Blau-Palette) — bewusst KEIN Dynamic Color mehr, damit
+    // Fullscreen-App und Overlay-Panel garantiert identisch aussehen und die Marke nicht von
+    // Systemfarben (oder altem gespeichertem useDynamicColor-State) überschrieben wird.
+    // prefs.useDynamicColor wird daher ignoriert (Feld bleibt für evtl. spätere Nutzung).
+    val colorScheme = if (dark) DarkColors else LightColors
 
     MaterialTheme(
         colorScheme = colorScheme,
