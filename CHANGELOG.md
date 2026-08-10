@@ -6,6 +6,13 @@ Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1
 die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 Dieser Changelog wird ab dem ersten Release von `release-please` gepflegt.
 
+## [0.9.0](https://github.com/Labushuya/overlai/compare/v0.8.0...v0.9.0) (2026-08-10)
+
+
+### Features
+
+* **chat:** Projekte/Gruppen — CRUD + Chats verschieben (E2) ([#40](https://github.com/Labushuya/overlai/issues/40)) ([cfec2f6](https://github.com/Labushuya/overlai/commit/cfec2f6ae4dd6a481dd4ee33c14ca067d924ccf0))
+
 ## [0.8.0](https://github.com/Labushuya/overlai/compare/v0.7.2...v0.8.0) (2026-08-09)
 
 
