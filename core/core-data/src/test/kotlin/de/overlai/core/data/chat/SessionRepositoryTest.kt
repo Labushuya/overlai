@@ -28,7 +28,7 @@ class SessionRepositoryTest {
                 ApplicationProvider.getApplicationContext(),
                 OverlaiDatabase::class.java,
             ).allowMainThreadQueries().build()
-        repo = SessionRepository(db.chatDao())
+        repo = SessionRepository(db.chatDao(), db.projectDao())
     }
 
     @After
@@ -89,5 +89,44 @@ class SessionRepositoryTest {
 
             val sessions = repo.observeSessions().first()
             assertThat(sessions.map { it.id }).containsExactly("new", "old").inOrder()
+        }
+
+    // --- Projekte/Gruppen (E2) ---
+
+    @Test
+    fun `Projekt anlegen, Chat verschieben und wieder herausloesen`() =
+        runTest {
+            repo.createProject("p1", "Arbeit", now = 1)
+            repo.createSession("s1", "Chat", "openai", null, now = 2)
+
+            repo.moveChatToProject("s1", "p1", now = 3)
+            assertThat(repo.getSession("s1")!!.projectId).isEqualTo("p1")
+
+            repo.moveChatToProject("s1", null, now = 4)
+            assertThat(repo.getSession("s1")!!.projectId).isNull()
+        }
+
+    @Test
+    fun `deleteProject laesst Chats erhalten und nullt projectId (SET NULL)`() =
+        runTest {
+            repo.createProject("p1", "Projekt", now = 1)
+            repo.createSession("s1", "Chat", "openai", null, now = 2)
+            repo.moveChatToProject("s1", "p1", now = 3)
+
+            repo.deleteProject("p1")
+
+            val session = repo.getSession("s1")
+            assertThat(session).isNotNull()
+            assertThat(session!!.projectId).isNull()
+            assertThat(repo.observeProjects().first()).isEmpty()
+        }
+
+    @Test
+    fun `renameProject aendert den Namen`() =
+        runTest {
+            repo.createProject("p1", "Alt", now = 1)
+            repo.renameProject("p1", "Neu", now = 2)
+
+            assertThat(repo.observeProjects().first().single().name).isEqualTo("Neu")
         }
 }
