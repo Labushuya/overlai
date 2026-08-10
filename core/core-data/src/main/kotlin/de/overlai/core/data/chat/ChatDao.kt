@@ -48,4 +48,12 @@ interface ChatDao {
     // Löscht die Session; Nachrichten gehen per FK-CASCADE mit.
     @Query("DELETE FROM chat_sessions WHERE id = :id")
     suspend fun deleteSession(id: String)
+
+    // Chat einem Projekt zuordnen bzw. herauslösen (projectId = null → „Ohne Projekt"). (E2)
+    @Query("UPDATE chat_sessions SET projectId = :projectId, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun moveSessionToProject(
+        id: String,
+        projectId: String?,
+        updatedAt: Long,
+    )
 }

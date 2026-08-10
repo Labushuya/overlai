@@ -1,12 +1,27 @@
 package de.overlai.core.data.chat
 
 import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-// CHANGE-MARKER: Multi-Chat-Persistenz (P2.1b, siehe CHANGELOG.md)
+// CHANGE-MARKER: Projekte/Gruppen (Phase 3 E2, siehe CHANGELOG.md)
 // Metadaten einer Chat-Session. Jede Session hat einen EIGENEN Provider+Modell
 // (unabhängig von der globalen Auswahl) — das ist der Kern von Multi-Chat.
-@Entity(tableName = "chat_sessions")
+// E2: optionale Zuordnung zu einem Projekt (projectId). onDelete=SET_NULL → wird ein
+// Projekt gelöscht, bleiben seine Chats erhalten (landen in „Ohne Projekt").
+@Entity(
+    tableName = "chat_sessions",
+    foreignKeys = [
+        ForeignKey(
+            entity = ProjectEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["projectId"],
+            onDelete = ForeignKey.SET_NULL,
+        ),
+    ],
+    indices = [Index("projectId")],
+)
 data class ChatSessionEntity(
     @PrimaryKey val id: String,
     val title: String,
@@ -15,4 +30,6 @@ data class ChatSessionEntity(
     val modelId: String?,
     val createdAt: Long,
     val updatedAt: Long,
+    // null → keinem Projekt zugeordnet („Ohne Projekt").
+    val projectId: String? = null,
 )

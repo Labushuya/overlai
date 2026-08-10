@@ -5,6 +5,11 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+// Room-Schema-Export (E2): JSON-Schemas nach schemas/ — Grundlage für Migrations-Tests.
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 dependencies {
     implementation(project(":core:core-common"))
     implementation(project(":core:core-llm"))
