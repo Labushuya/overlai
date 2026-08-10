@@ -16,6 +16,15 @@ data class ChatSession(
     val providerId: String,
     val modelId: String?,
     val updatedAt: Long,
+    // null → keinem Projekt zugeordnet (E2).
+    val projectId: String? = null,
+)
+
+// Ein Projekt/eine Gruppe (E2).
+data class Project(
+    val id: String,
+    val name: String,
+    val updatedAt: Long,
 )
 
 // Eine persistierte Nachricht in der Domänen-Form (ohne UI-Streaming-Flag).
@@ -26,6 +35,7 @@ data class StoredMessage(
 
 class SessionRepository(
     private val dao: ChatDao,
+    private val projectDao: ProjectDao,
 ) {
     fun observeSessions(): Flow<List<ChatSession>> = dao.observeSessions().map { list -> list.map { it.toDomain() } }
 
@@ -83,8 +93,45 @@ class SessionRepository(
 
     suspend fun deleteSession(id: String) = dao.deleteSession(id)
 
+    // --- Projekte/Gruppen (E2) ---
+
+    fun observeProjects(): Flow<List<Project>> = projectDao.observeProjects().map { list -> list.map { it.toDomain() } }
+
+    suspend fun createProject(
+        id: String,
+        name: String,
+        now: Long,
+    ): String {
+        projectDao.upsertProject(ProjectEntity(id = id, name = name, createdAt = now, updatedAt = now))
+        return id
+    }
+
+    suspend fun renameProject(
+        id: String,
+        name: String,
+        now: Long,
+    ) = projectDao.updateProjectName(id, name, now)
+
+    // Projekt löschen; zugeordnete Chats bleiben erhalten (projectId per FK SET NULL).
+    suspend fun deleteProject(id: String) = projectDao.deleteProject(id)
+
+    suspend fun moveChatToProject(
+        sessionId: String,
+        projectId: String?,
+        now: Long,
+    ) = dao.moveSessionToProject(sessionId, projectId, now)
+
     private fun ChatSessionEntity.toDomain() =
-        ChatSession(id = id, title = title, providerId = providerId, modelId = modelId, updatedAt = updatedAt)
+        ChatSession(
+            id = id,
+            title = title,
+            providerId = providerId,
+            modelId = modelId,
+            updatedAt = updatedAt,
+            projectId = projectId,
+        )
+
+    private fun ProjectEntity.toDomain() = Project(id = id, name = name, updatedAt = updatedAt)
 
     private fun ChatMessageEntity.toDomain() =
         StoredMessage(role = runCatching { Role.valueOf(role) }.getOrDefault(Role.ASSISTANT), text = text)

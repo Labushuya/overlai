@@ -8,8 +8,14 @@ import androidx.room.Room
 // Dependency, kennt nur diese Funktion + SessionRepository). Bindung als @Singleton in :app.
 object ChatDatabaseFactory {
     fun create(context: Context): OverlaiDatabase =
-        Room.databaseBuilder(context, OverlaiDatabase::class.java, "overlai.db").build()
+        Room.databaseBuilder(context, OverlaiDatabase::class.java, "overlai.db")
+            // Echte Migrationen (E2+): bestehende Chats bleiben beim Update erhalten.
+            .addMigrations(MIGRATION_1_2)
+            .build()
 
     // :app soll Room nicht sehen — nur diese Factory nutzen, die direkt das Repository liefert.
-    fun createRepository(context: Context): SessionRepository = SessionRepository(create(context).chatDao())
+    fun createRepository(context: Context): SessionRepository {
+        val db = create(context)
+        return SessionRepository(db.chatDao(), db.projectDao())
+    }
 }
