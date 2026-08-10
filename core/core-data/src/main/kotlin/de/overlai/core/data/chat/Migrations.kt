@@ -35,7 +35,8 @@ val MIGRATION_1_2 =
             db.execSQL(
                 "INSERT INTO `chat_sessions_new` " +
                     "(`id`, `title`, `providerId`, `modelId`, `createdAt`, `updatedAt`, `projectId`) " +
-                    "SELECT `id`, `title`, `providerId`, `modelId`, `createdAt`, `updatedAt`, NULL FROM `chat_sessions`",
+                    "SELECT `id`, `title`, `providerId`, `modelId`, `createdAt`, `updatedAt`, NULL " +
+                    "FROM `chat_sessions`",
             )
             db.execSQL("DROP TABLE `chat_sessions`")
             db.execSQL("ALTER TABLE `chat_sessions_new` RENAME TO `chat_sessions`")
