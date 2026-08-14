@@ -6,6 +6,13 @@ Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1
 die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 Dieser Changelog wird ab dem ersten Release von `release-please` gepflegt.
 
+## [0.11.0](https://github.com/Labushuya/overlai/compare/v0.10.0...v0.11.0) (2026-08-14)
+
+
+### Features
+
+* **entrypoints:** Notification-Zugang + gemischter Share-Flow (P2.4) ([#44](https://github.com/Labushuya/overlai/issues/44)) ([2dfd6d5](https://github.com/Labushuya/overlai/commit/2dfd6d5142e11c9fe77f71a40b0d345aeb5f4de8))
+
 ## [0.10.0](https://github.com/Labushuya/overlai/compare/v0.9.0...v0.10.0) (2026-08-14)
 
 
