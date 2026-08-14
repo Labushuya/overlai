@@ -20,11 +20,15 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AddComment
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragIndicator
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -202,36 +206,99 @@ private fun HeaderAction(
     }
 }
 
-// --- LIST: kompakte Session-Liste (aktive markiert), Tap → Chat, Papierkorb-Icon löscht ---
+// --- LIST: nach Projekten gruppierte Session-Liste; Chat: öffnen/umbenennen/verschieben/
+// löschen; Projekt anlegen/umbenennen/löschen. Bubble-kompakt. E3c ---
 @Composable
 private fun ListScreen(
     chat: OverlayChatState,
     onOpen: () -> Unit,
 ) {
-    val sessions by chat.sessions.collectAsStateWithLifecycle()
+    val groups by chat.groups.collectAsStateWithLifecycle()
+    val projects by chat.projects.collectAsStateWithLifecycle()
     val activeId by chat.activeSessionId.collectAsStateWithLifecycle()
-    if (sessions.isEmpty()) {
-        Text(
-            "Noch keine Chats. Tippe auf ＋, um einen zu starten.",
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(8.dp),
-        )
-        return
-    }
-    LazyColumn(
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        items(sessions, key = { it.id }) { session ->
-            SessionRow(
-                session = session,
-                active = session.id == activeId,
-                onOpen = {
-                    chat.switchTo(session.id)
-                    onOpen()
-                },
-                onDelete = { chat.delete(session.id) },
+    var newProject by remember { mutableStateOf(false) }
+    var renameSession by remember { mutableStateOf<ChatSession?>(null) }
+    var moveSession by remember { mutableStateOf<ChatSession?>(null) }
+
+    Column(modifier = Modifier.fillMaxHeight()) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Text("Chats & Projekte", style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
+            IconButton(onClick = { newProject = true }, modifier = Modifier.size(36.dp)) {
+                Icon(Icons.Filled.CreateNewFolder, contentDescription = "Neues Projekt")
+            }
+        }
+        if (groups.isEmpty()) {
+            Text(
+                "Noch keine Chats. Tippe auf ＋, um einen zu starten.",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(8.dp),
             )
+        } else {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
+                groups.forEach { group ->
+                    item(key = "hdr-${group.project?.id ?: "none"}") {
+                        ProjectHeader(
+                            name = group.project?.name ?: "Ohne Projekt",
+                            deletable = group.project != null,
+                            onDelete = { group.project?.let { chat.deleteProject(it.id) } },
+                        )
+                    }
+                    items(group.chats, key = { it.id }) { session ->
+                        SessionRow(
+                            session = session,
+                            active = session.id == activeId,
+                            onOpen = {
+                                chat.switchTo(session.id)
+                                onOpen()
+                            },
+                            onRename = { renameSession = session },
+                            onMove = { moveSession = session },
+                            onDelete = { chat.delete(session.id) },
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    if (newProject) {
+        PanelTextInputDialog("Neues Projekt", "", "Anlegen", {
+            chat.createProject(it)
+            newProject = false
+        }, { newProject = false })
+    }
+    renameSession?.let { s ->
+        PanelTextInputDialog("Chat umbenennen", s.title, "Speichern", {
+            chat.rename(s.id, it)
+            renameSession = null
+        }, { renameSession = null })
+    }
+    moveSession?.let { s ->
+        PanelMoveDialog(projects = projects, onPick = {
+            chat.moveChat(s.id, it)
+            moveSession = null
+        }, onDismiss = { moveSession = null })
+    }
+}
+
+@Composable
+private fun ProjectHeader(
+    name: String,
+    deletable: Boolean,
+    onDelete: () -> Unit,
+) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) {
+        Text(
+            name,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.weight(1f),
+        )
+        if (deletable) {
+            IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+                Icon(Icons.Filled.Delete, contentDescription = "Projekt löschen")
+            }
         }
     }
 }
@@ -241,12 +308,15 @@ private fun SessionRow(
     session: ChatSession,
     active: Boolean,
     onOpen: () -> Unit,
+    onRename: () -> Unit,
+    onMove: () -> Unit,
     onDelete: () -> Unit,
 ) {
     val container =
         if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
     val borderColor =
         if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+    var menu by remember { mutableStateOf(false) }
     Surface(
         color = container,
         shape = MaterialTheme.shapes.small,
@@ -262,26 +332,72 @@ private fun SessionRow(
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
                 maxLines = 1,
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .padding(vertical = 10.dp)
-                        .clickableRow(onOpen),
+                modifier = Modifier.weight(1f).padding(vertical = 10.dp).clickableRow(onOpen),
             )
-            IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
-                Icon(Icons.Filled.Delete, contentDescription = "Löschen")
+            IconButton(onClick = { menu = true }, modifier = Modifier.size(36.dp)) {
+                Icon(Icons.Filled.MoreVert, contentDescription = "Mehr")
+            }
+            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                DropdownMenuItem(text = { Text("Umbenennen") }, onClick = {
+                    menu = false
+                    onRename()
+                })
+                DropdownMenuItem(text = { Text("In Projekt verschieben") }, onClick = {
+                    menu = false
+                    onMove()
+                })
+                DropdownMenuItem(text = { Text("Löschen") }, onClick = {
+                    menu = false
+                    onDelete()
+                })
             }
         }
     }
 }
 
-// --- CHAT: der Verlauf der aktiven Session + Composer (wie bisher, kompakt) ---
+// --- CHAT: Verlauf der aktiven Session + Usage/Aktionen + Composer (kompakt). E3c ---
 @Composable
 private fun ChatScreenContent(chat: OverlayChatState) {
     val s by chat.state.collectAsStateWithLifecycle()
+    val ui by chat.ui.collectAsStateWithLifecycle()
+    var renaming by remember { mutableStateOf(false) }
+    val activeId by chat.activeSessionId.collectAsStateWithLifecycle()
+    val sessions by chat.sessions.collectAsStateWithLifecycle()
+    val activeTitle = sessions.firstOrNull { it.id == activeId }?.title.orEmpty()
+
     Column(modifier = Modifier.fillMaxHeight()) {
+        PanelUsageBar(
+            promptTokens = s.promptTokens,
+            completionTokens = s.completionTokens,
+            contextLimit = ui.contextLimit,
+            onHandover = { chat.generateHandover() },
+            onRename = { renaming = true },
+        )
         MessageList(s.messages, modifier = Modifier.weight(1f))
         Composer(streaming = s.isStreaming, onSend = { chat.send(it) })
+    }
+
+    if (ui.handoverLoading) {
+        PanelInfoDialog("Handover wird erstellt…", "Der Verlauf wird zusammengefasst.")
+    }
+    ui.handoverPreview?.let { text ->
+        PanelHandoverPreview(
+            text = text,
+            onConfirm = { chat.applyHandover(text) },
+            onDismiss = { chat.dismissHandover() },
+        )
+    }
+    if (renaming && activeId != null) {
+        PanelTextInputDialog(
+            title = "Chat umbenennen",
+            initial = activeTitle,
+            confirmLabel = "Speichern",
+            onConfirm = {
+                chat.rename(activeId!!, it)
+                renaming = false
+            },
+            onDismiss = { renaming = false },
+        )
     }
 }
 

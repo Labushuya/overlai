@@ -15,6 +15,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import de.overlai.conversation.HandoverGenerator
 import de.overlai.core.ui.util.OnResume
 import de.overlai.feature.chat.ChatListScreen
 import de.overlai.feature.chat.ChatListViewModel
@@ -250,16 +251,27 @@ private fun ChatRoute(
                     ChatViewModel(
                         engine = deps.conversationEngine,
                         repo = deps.sessionRepository,
+                        handover = HandoverGenerator(deps.conversationEngine, deps.sessionRepository),
                         sessionId = session.id,
                         providerId = session.providerId,
                         modelId = session.modelId,
                     )
                 },
         )
+    // E3b: In einer frisch per Handover erzeugten Fortsetzungs-Session das LLM automatisch
+    // antworten lassen (idempotent im VM per Verlaufs-Fingerabdruck).
+    LaunchedEffect(sessionId) { vm.maybeAutostart() }
     ChatScreen(
         viewModel = vm,
         onOpenOnboarding = { navController.navigate(SettingsRoutes.PROVIDER) },
         onBack = { navController.popBackStack() },
+        // Handover → neue Session desselben Chats: alte Detailseite aus dem Backstack nehmen
+        // und die neue öffnen (kein Zurück in die volle Alt-Session).
+        onOpenSession = { newId ->
+            navController.navigate(Routes.chatDetail(newId)) {
+                popUpTo(Routes.CHAT_DETAIL) { inclusive = true }
+            }
+        },
     )
 }
 

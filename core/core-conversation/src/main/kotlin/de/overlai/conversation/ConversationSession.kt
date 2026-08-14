@@ -54,6 +54,10 @@ class ConversationSession(
         val messages: List<ChatUiMessage> = emptyList(),
         val isStreaming: Boolean = false,
         val error: String? = null,
+        // Token-Verbrauch des letzten Turns (E3): prompt = aktueller Kontext, completion =
+        // letzte Antwort. Für die Usage-/Kontextfenster-Anzeige. 0 solange nichts lief.
+        val promptTokens: Int = 0,
+        val completionTokens: Int = 0,
     )
 
     private val _state = MutableStateFlow(State())
@@ -91,6 +95,9 @@ class ConversationSession(
                         ChatUiMessage(Role.ASSISTANT, "", streaming = true),
                 isStreaming = true,
                 error = null,
+                // Completion-Tokens gelten pro Turn → zurücksetzen; promptTokens folgt dem
+                // wachsenden Kontext und wird vom nächsten UsageUpdate überschrieben. (E3)
+                completionTokens = 0,
             )
         // User-Nachricht sofort persistieren.
         persistence?.let { p -> scope.launch { p.onUserMessage(text) } }
@@ -100,7 +107,34 @@ class ConversationSession(
             _state.value.messages
                 .filterNot { it.role == Role.ASSISTANT && it.streaming }
                 .map { it.toDomain() }
+        runTurn(history)
+    }
 
+    // E3: Auto-Antwort in einer frisch per Handover erzeugten Fortsetzungs-Session. Streamt
+    // einen Turn OHNE sichtbare/persistierte User-Bubble — der vorhandene (Handover-)Verlauf
+    // dient als Kontext, plus eine synthetische USER-Instruktion NUR für die Engine (nicht im
+    // State, nicht persistiert). Letztere macht den letzten Turn zu USER (Anthropic verlangt
+    // Alternierung) und stößt die Antwort an.
+    fun primeAndRespond() {
+        if (_state.value.isStreaming || _state.value.messages.isEmpty()) return
+        _state.value =
+            _state.value.copy(
+                messages = _state.value.messages + ChatUiMessage(Role.ASSISTANT, "", streaming = true),
+                isStreaming = true,
+                error = null,
+                completionTokens = 0,
+            )
+        val history =
+            _state.value.messages
+                .filterNot { it.role == Role.ASSISTANT && it.streaming }
+                .map { it.toDomain() } +
+                ChatMessage(Role.USER, PRIME_INSTRUCTION)
+        runTurn(history)
+    }
+
+    // Gemeinsamer Streaming-Kern für send()/primeAndRespond(): streamt [history], akkumuliert
+    // Deltas in die letzte (streamende) Assistant-Bubble, schließt via finishTurn() ab.
+    private fun runTurn(history: List<ChatMessage>) {
         val builder = StringBuilder()
         streamJob =
             streamer
@@ -111,6 +145,7 @@ class ConversationSession(
                             builder.append(event.text)
                             updateLastAssistant(builder.toString(), streaming = true)
                         }
+                        is ConversationEngine.Event.UsageUpdate -> applyUsage(event.usage)
                         ConversationEngine.Event.Done -> Unit // via onCompletion abgeschlossen
                         is ConversationEngine.Event.Failed ->
                             updateLastAssistant(event.message, streaming = false)
@@ -135,6 +170,17 @@ class ConversationSession(
 
     private fun ChatUiMessage?.isPersistableAssistant(): Boolean =
         this != null && role == Role.ASSISTANT && text.isNotEmpty()
+
+    // Usage-Events kommen teils getrennt (Anthropic: prompt via message_start, completion via
+    // message_delta) oder gebündelt (OpenAI). Je Feld den Maximalwert übernehmen — robust gegen
+    // 0-Teilwerte und Doppel-Emission; die Werte gelten für den aktuellen Turn. (E3)
+    private fun applyUsage(usage: de.overlai.llm.Usage) {
+        _state.value =
+            _state.value.copy(
+                promptTokens = maxOf(_state.value.promptTokens, usage.promptTokens),
+                completionTokens = maxOf(_state.value.completionTokens, usage.completionTokens),
+            )
+    }
 
     // Laufenden Stream abbrechen (Stopp-Button). onCompletion räumt das Flag ab.
     fun cancel() {
@@ -182,5 +228,14 @@ class ConversationSession(
             msgs[idx] = msgs[idx].copy(text = text, streaming = streaming)
             _state.value = _state.value.copy(messages = msgs)
         }
+    }
+
+    private companion object {
+        // Synthetische USER-Instruktion für den Handover-Autostart (nur an die Engine, nicht
+        // im State/persistiert). Fordert das Modell auf, direkt auf Basis des Handovers weiter-
+        // zuarbeiten.
+        const val PRIME_INSTRUCTION =
+            "Das ist ein Handover aus einer vorherigen Session. Bestätige kurz den Stand und " +
+                "arbeite direkt weiter: nenne den nächsten konkreten Schritt und beginne damit."
     }
 }

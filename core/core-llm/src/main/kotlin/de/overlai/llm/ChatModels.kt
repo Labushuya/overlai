@@ -40,10 +40,21 @@ data class ChatRequest(
     val webSearch: Boolean = false,
 )
 
+// Token-Verbrauch einer Antwort (soweit der Provider ihn liefert). prompt = Eingabe-
+// (Kontext-)Tokens, completion = generierte Tokens. total default = Summe. (Phase 3 E3)
+data class Usage(
+    val promptTokens: Int,
+    val completionTokens: Int,
+) {
+    val totalTokens: Int get() = promptTokens + completionTokens
+}
+
 // Ein Streaming-Delta (SSE-Chunk). `text` ist das inkrementelle Token-Stück.
 data class ChatDelta(
     val text: String,
     val done: Boolean = false,
     // Optionale Metadaten am Ende des Streams (finish_reason, usage …).
     val finishReason: String? = null,
+    // Token-Usage — kommt i.d.R. nur im letzten Chunk (done) mit. (E3)
+    val usage: Usage? = null,
 )

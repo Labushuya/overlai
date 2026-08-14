@@ -6,6 +6,7 @@ import de.overlai.llm.ChatRequest
 import de.overlai.llm.LlmError
 import de.overlai.llm.ProviderConfig
 import de.overlai.llm.ProviderFactory
+import de.overlai.llm.Usage
 import de.overlai.llm.providers.ProviderRegistry
 import de.overlai.security.KeyVault
 import kotlinx.coroutines.flow.Flow
@@ -27,6 +28,11 @@ class ConversationEngine(
     sealed interface Event {
         data class Delta(
             val text: String,
+        ) : Event
+
+        // Token-Usage aus dem Stream (E3) — die Session akkumuliert die Werte.
+        data class UsageUpdate(
+            val usage: Usage,
         ) : Event
 
         data object Done : Event
@@ -94,9 +100,32 @@ class ConversationEngine(
                 .catch { e -> emit(Event.Failed(mapError(e))) }
                 .collect { delta ->
                     if (delta.text.isNotEmpty()) emit(Event.Delta(delta.text))
+                    delta.usage?.let { emit(Event.UsageUpdate(it)) }
                     if (delta.done) emit(Event.Done)
                 }
         }
+
+    // E3: One-shot-Vervollständigung (kein UI-Streaming) — sammelt die ganze Antwort in einen
+    // String. Für den Handover-Generator: schickt Verlauf + System-Instruktion an den Provider
+    // der Session und gibt den fertigen Text zurück. Wirft LlmError bei Fehlern.
+    suspend fun complete(
+        providerId: String,
+        modelId: String?,
+        messages: List<ChatMessage>,
+        system: String? = null,
+    ): String {
+        val config = ProviderRegistry.byId(providerId) ?: ProviderRegistry.OPENAI
+        val apiKey = keyVault.getKey(config.id) ?: error("Kein API-Key für ${config.displayName} hinterlegt.")
+        val request =
+            ChatRequest(
+                model = modelId ?: config.defaultModel,
+                messages = messages,
+                system = system,
+            )
+        val builder = StringBuilder()
+        providerFactory.create(config).chat(request, apiKey).collect { delta -> builder.append(delta.text) }
+        return builder.toString()
+    }
 
     companion object {
         fun mapError(e: Throwable): String =

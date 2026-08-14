@@ -5,6 +5,7 @@ import de.overlai.llm.ChatDelta
 import de.overlai.llm.ChatRequest
 import de.overlai.llm.LlmError
 import de.overlai.llm.ProviderConfig
+import de.overlai.llm.Usage
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -160,6 +161,12 @@ internal class OpenAiCompatTransport(
             runCatching { json.decodeFromString(OpenAiStreamChunk.serializer(), chunkJson) }
                 .getOrNull() ?: return ChunkResult.Ignore
         chunk.error?.let { err -> return ChunkResult.StreamError(mapStreamError(err)) }
+        // Usage kommt i.d.R. im finalen Chunk (oft mit leeren choices). Als Delta ohne Text
+        // durchreichen, damit die Token-Zahlen nicht verloren gehen. (E3)
+        val usage =
+            chunk.usage?.let { u ->
+                Usage(promptTokens = u.promptTokens ?: 0, completionTokens = u.completionTokens ?: 0)
+            }
         val choice = chunk.choices.firstOrNull()
         val delta = choice?.delta
         val content = delta?.content
@@ -168,10 +175,10 @@ internal class OpenAiCompatTransport(
         // für uns leer -> falscher "leere Antwort"-Fehler.
         val reasoning = delta?.reasoningContent ?: delta?.reasoning
         val text = if (!content.isNullOrEmpty()) content else reasoning
-        return if (text.isNullOrEmpty()) {
+        return if (text.isNullOrEmpty() && usage == null) {
             ChunkResult.Ignore
         } else {
-            ChunkResult.Delta(ChatDelta(text = text, finishReason = choice?.finishReason))
+            ChunkResult.Delta(ChatDelta(text = text ?: "", finishReason = choice?.finishReason, usage = usage))
         }
     }
 

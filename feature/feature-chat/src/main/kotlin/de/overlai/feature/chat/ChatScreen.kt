@@ -25,6 +25,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -43,10 +46,12 @@ fun ChatScreen(
     viewModel: ChatViewModel,
     onOpenOnboarding: () -> Unit,
     onBack: () -> Unit,
+    onOpenSession: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
+    var showRename by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.messages.size) {
         if (state.messages.isNotEmpty()) listState.animateScrollToItem(state.messages.lastIndex)
@@ -59,16 +64,25 @@ fun ChatScreen(
                 title = {
                     Column {
                         Text("OverlAI", style = MaterialTheme.typography.titleMedium)
-                        ProviderModelChip(
-                            providerName = state.providerName,
-                            modelId = state.modelId,
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            ProviderModelChip(
+                                providerName = state.providerName,
+                                modelId = state.modelId,
+                            )
+                            UsageLabel(state)
+                        }
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Zurück")
                     }
+                },
+                actions = {
+                    ChatOverflowMenu(
+                        onHandover = viewModel::generateHandover,
+                        onRename = { showRename = true },
+                    )
                 },
             )
         },
@@ -78,6 +92,12 @@ fun ChatScreen(
                 MissingKeyBanner(onOpenOnboarding)
             }
             state.error?.let { ErrorBanner(it) }
+            if (state.suggestHandover) {
+                HandoverSuggestionBanner(
+                    onHandover = viewModel::generateHandover,
+                    onDismiss = viewModel::dismissSuggestion,
+                )
+            }
 
             LazyColumn(
                 state = listState,
@@ -94,6 +114,46 @@ fun ChatScreen(
                 onSend = viewModel::onSend,
             )
         }
+    }
+
+    ChatDialogs(
+        viewModel = viewModel,
+        state = state,
+        onOpenSession = onOpenSession,
+        showRename = showRename,
+        onCloseRename = { showRename = false },
+    )
+}
+
+@Composable
+private fun ChatDialogs(
+    viewModel: ChatViewModel,
+    state: ChatUiState,
+    onOpenSession: (String) -> Unit,
+    showRename: Boolean,
+    onCloseRename: () -> Unit,
+) {
+    if (state.handoverLoading) {
+        HandoverLoadingDialog()
+    }
+    state.handoverPreview?.let { text ->
+        HandoverPreviewDialog(
+            text = text,
+            onConfirm = { viewModel.applyHandover(text, onOpenSession) },
+            onDismiss = viewModel::dismissHandover,
+        )
+    }
+    if (showRename) {
+        TextInputDialog(
+            title = "Chat umbenennen",
+            initial = state.title,
+            confirmLabel = "Speichern",
+            onConfirm = {
+                viewModel.rename(it)
+                onCloseRename()
+            },
+            onDismiss = onCloseRename,
+        )
     }
 }
 
