@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -30,6 +31,12 @@ import androidx.compose.ui.unit.dp
 // P2.1c: Toggle ist UNABHÄNGIG von der Berechtigung — der Wunsch „Bubble an" wird immer
 // gespeichert; fehlt die Berechtigung, erscheint nur ein Hinweis mit Weg ins Berechtigungs-
 // Menü. Erteilen/Entziehen der Berechtigung schaltet die Bubble also nicht mehr um.
+// Ein einfacher An/Aus-Zugang (Zustand + Umschalt-Callback) — bündelt Parameter.
+data class AccessToggle(
+    val enabled: Boolean,
+    val onToggle: (Boolean) -> Unit,
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OverlaySettingsScreen(
@@ -38,13 +45,14 @@ fun OverlaySettingsScreen(
     onToggle: (Boolean) -> Unit,
     onOpenPermissions: () -> Unit,
     onBack: () -> Unit,
+    notification: AccessToggle,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text("Overlay-Bubble") },
+                title = { Text("Zugänge") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Zurück")
@@ -88,6 +96,28 @@ fun OverlaySettingsScreen(
                 Button(onClick = onOpenPermissions) {
                     Text("Zum Berechtigungs-Menü")
                 }
+            }
+
+            HorizontalDivider()
+
+            // P2.4: Benachrichtigungs-Zugang — persistente Notification mit Direktantwort.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Benachrichtigungs-Zugang", fontWeight = FontWeight.Bold)
+                    Text(
+                        "Dauerhafte Benachrichtigung: Chat direkt öffnen und per Direktantwort " +
+                            "schreiben. Braucht die Benachrichtigungs-Berechtigung.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = notification.enabled,
+                    onCheckedChange = notification.onToggle,
+                )
             }
         }
     }

@@ -91,35 +91,70 @@ class NewChatViewModel(
         _state.value = _state.value.copy(selectedProviderId = null, models = ModelsState.Idle)
     }
 
-    // Session mit explizit gewähltem Provider+Modell anlegen.
+    // Session mit explizit gewähltem Provider+Modell anlegen. initialUserText (P2.4 Share):
+    // wird als erste User-Nachricht + Titel gesetzt, damit das LLM beim Öffnen darauf antwortet.
     fun create(
         providerId: String,
         modelId: String?,
+        initialUserText: String? = null,
         onCreated: (String) -> Unit,
     ) {
         viewModelScope.launch {
-            val id = createSession(providerId, modelId)
+            val id = createSession(providerId, modelId, initialUserText)
             onCreated(id)
         }
     }
 
     // Schnellstart: globaler aktiver Provider/Modell (bisheriger Ein-Tap-Weg).
-    fun quickStart(onCreated: (String) -> Unit) {
+    fun quickStart(
+        initialUserText: String? = null,
+        onCreated: (String) -> Unit,
+    ) {
         viewModelScope.launch {
             val providerId = settingsStore.activeProviderId.first()
             val modelId = settingsStore.activeModelId(providerId).first()
-            val id = createSession(providerId, modelId)
+            val id = createSession(providerId, modelId, initialUserText)
             onCreated(id)
+        }
+    }
+
+    // P2.4 Share: geteilten Text nachträglich als erste User-Nachricht anhängen (Absenden-Wahl
+    // "sofort senden"), damit der geöffnete Chat den Autostart (1×USER) auslöst.
+    fun appendUserMessage(
+        sessionId: String,
+        text: String,
+        onDone: () -> Unit,
+    ) {
+        val t = text.trim()
+        if (t.isEmpty()) {
+            onDone()
+            return
+        }
+        viewModelScope.launch {
+            repo.appendMessage(sessionId, de.overlai.llm.Role.USER, t, System.currentTimeMillis())
+            onDone()
         }
     }
 
     private suspend fun createSession(
         providerId: String,
         modelId: String?,
+        initialUserText: String? = null,
     ): String {
         val id = UUID.randomUUID().toString()
-        repo.createSession(id, "Neuer Chat", providerId, modelId, System.currentTimeMillis())
+        val now = System.currentTimeMillis()
+        val title = initialUserText?.trim()?.take(TITLE_MAX_LEN)?.ifBlank { null } ?: "Neuer Chat"
+        repo.createSession(id, title, providerId, modelId, now)
+        // P2.4 Share: geteilten Text als erste User-Nachricht anlegen (der geöffnete Chat
+        // startet daraufhin automatisch die Antwort — Autostart-Fingerabdruck 1×USER).
+        initialUserText?.trim()?.takeIf { it.isNotEmpty() }?.let {
+            repo.appendMessage(id, de.overlai.llm.Role.USER, it, now)
+        }
         settingsStore.setActiveSession(id)
         return id
+    }
+
+    private companion object {
+        const val TITLE_MAX_LEN = 40
     }
 }

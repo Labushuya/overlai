@@ -11,4 +11,6 @@ dependencies {
     implementation(project(":core:core-security"))
     implementation(project(":core:core-data"))
     implementation(project(":feature:feature-ocr"))
+    // P2.4: Share startet neue persistente Chats über den NewChatSheet-Flow (Provider/Modell-Wahl).
+    implementation(project(":feature:feature-chat"))
 }

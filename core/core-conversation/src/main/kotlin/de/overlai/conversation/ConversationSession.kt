@@ -110,12 +110,12 @@ class ConversationSession(
         runTurn(history)
     }
 
-    // E3: Auto-Antwort in einer frisch per Handover erzeugten Fortsetzungs-Session. Streamt
-    // einen Turn OHNE sichtbare/persistierte User-Bubble — der vorhandene (Handover-)Verlauf
-    // dient als Kontext, plus eine synthetische USER-Instruktion NUR für die Engine (nicht im
-    // State, nicht persistiert). Letztere macht den letzten Turn zu USER (Anthropic verlangt
-    // Alternierung) und stößt die Antwort an.
-    fun primeAndRespond() {
+    // E3/P2.4: Auto-Antwort auf einen bereits vorhandenen Verlauf, OHNE sichtbare/persistierte
+    // User-Bubble. Handover (letzte Msg = ASSISTANT): appendPrimeInstruction=true hängt eine
+    // synthetische USER-Instruktion NUR für die Engine an (Anthropic-Alternierung + Anstoß).
+    // Share (letzte Msg = bereits eine echte USER-Nachricht): appendPrimeInstruction=false —
+    // der vorhandene Verlauf wird direkt beantwortet.
+    fun primeAndRespond(appendPrimeInstruction: Boolean = true) {
         if (_state.value.isStreaming || _state.value.messages.isEmpty()) return
         _state.value =
             _state.value.copy(
@@ -124,11 +124,11 @@ class ConversationSession(
                 error = null,
                 completionTokens = 0,
             )
-        val history =
+        val base =
             _state.value.messages
                 .filterNot { it.role == Role.ASSISTANT && it.streaming }
-                .map { it.toDomain() } +
-                ChatMessage(Role.USER, PRIME_INSTRUCTION)
+                .map { it.toDomain() }
+        val history = if (appendPrimeInstruction) base + ChatMessage(Role.USER, PRIME_INSTRUCTION) else base
         runTurn(history)
     }
 

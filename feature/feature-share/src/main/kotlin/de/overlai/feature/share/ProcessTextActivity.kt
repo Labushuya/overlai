@@ -9,27 +9,20 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewmodel.compose.viewModel
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.EntryPointAccessors
 import de.overlai.core.ui.theme.OverlAiTheme
 
-// CHANGE-MARKER v0.1.0: Entry-Points (siehe CHANGELOG.md)
-// ACTION_PROCESS_TEXT: "OverlAI" im Text-Selektions-Menü jeder App. Nimmt die
-// Selektion, bietet Quick-Actions, zeigt das Ergebnis. Insert-in-Place ist
-// host-abhängig (READONLY-Flag) -> sonst Copy-Fallback.
+// CHANGE-MARKER: Entry-Points (P2.4, siehe CHANGELOG.md)
+// ACTION_PROCESS_TEXT: "OverlAI" im Text-Selektions-Menü jeder App. Gemischter Flow:
+// Schnellaktionen + Kopieren/Einfügen (ephemer) ODER "In Chat öffnen" (persistenter Chat).
 @AndroidEntryPoint
 class ProcessTextActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         val selected =
-            intent
-                ?.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)
-                ?.toString()
-                .orEmpty()
+            intent?.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString().orEmpty()
         val readonly = intent?.getBooleanExtra(Intent.EXTRA_PROCESS_TEXT_READONLY, false) ?: false
         val canReplace = !readonly
 
@@ -39,19 +32,14 @@ class ProcessTextActivity : ComponentActivity() {
             return
         }
 
-        val deps =
-            EntryPointAccessors.fromApplication(applicationContext, ShareDependencies::class.java)
+        val deps = EntryPointAccessors.fromApplication(applicationContext, ShareDependencies::class.java)
 
         setContent {
             OverlAiTheme {
-                val vm =
-                    viewModel<QuickActionViewModel>(
-                        factory = quickActionFactory(deps),
-                    )
-                vm.setSource(selected, canReplaceInHost = canReplace)
-
-                QuickActionSurface(
-                    viewModel = vm,
+                ShareFlow(
+                    deps = deps,
+                    sourceText = selected,
+                    canReplaceInHost = canReplace,
                     onCopy = { copyAndFinish(it) },
                     onInsert =
                         if (canReplace) {
@@ -60,42 +48,22 @@ class ProcessTextActivity : ComponentActivity() {
                             null
                         },
                     onDismiss = { finish() },
+                    onOpenChat = { sessionId, pending -> openChatAndFinish(sessionId, pending) },
                 )
             }
         }
     }
 
-    private fun copyToClipboard(text: String) {
+    private fun copyAndFinish(text: String) {
         val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         cm.setPrimaryClip(ClipData.newPlainText("OverlAI", text))
-    }
-
-    private fun copyAndFinish(text: String) {
-        copyToClipboard(text)
-        toastAndFinish("Kopiert")
+        Toast.makeText(this, "OverlAI: Kopiert", Toast.LENGTH_SHORT).show()
+        finish()
     }
 
     // Ergebnis zurück in die Host-App schreiben (ersetzt die Selektion).
     private fun replaceInHost(text: String) {
-        val result = Intent().putExtra(Intent.EXTRA_PROCESS_TEXT, text)
-        setResult(Activity.RESULT_OK, result)
-        finish()
-    }
-
-    private fun toastAndFinish(msg: String) {
-        Toast.makeText(this, "OverlAI: $msg", Toast.LENGTH_SHORT).show()
+        setResult(Activity.RESULT_OK, Intent().putExtra(Intent.EXTRA_PROCESS_TEXT, text))
         finish()
     }
 }
-
-// Gemeinsame ViewModel-Factory für die Entry-Activities.
-internal fun quickActionFactory(deps: ShareDependencies): ViewModelProvider.Factory =
-    object : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            QuickActionViewModel(
-                providerFactory = deps.providerFactory(),
-                keyVault = deps.keyVault(),
-                settingsStore = deps.settingsStore(),
-            ) as T
-    }
