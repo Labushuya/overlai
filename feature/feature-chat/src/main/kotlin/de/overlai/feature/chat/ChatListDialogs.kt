@@ -110,7 +110,7 @@ private inline fun <T> MutableState<T?>.dialogTarget(content: @Composable (T, ()
 }
 
 @Composable
-private fun TextInputDialog(
+internal fun TextInputDialog(
     title: String,
     initial: String,
     confirmLabel: String,

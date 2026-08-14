@@ -41,6 +41,7 @@ class OverlayService : Service() {
             settingsStore = deps.settingsStore(),
             keyVault = deps.keyVault(),
             modelCatalog = deps.modelCatalog(),
+            handover = de.overlai.conversation.HandoverGenerator(deps.conversationEngine(), deps.sessionRepository()),
         )
     }
 

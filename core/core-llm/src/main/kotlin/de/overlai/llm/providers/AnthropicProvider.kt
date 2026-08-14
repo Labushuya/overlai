@@ -6,6 +6,7 @@ import de.overlai.llm.ChatRequest
 import de.overlai.llm.LlmError
 import de.overlai.llm.LlmProvider
 import de.overlai.llm.ProviderConfig
+import de.overlai.llm.Usage
 import de.overlai.llm.transport.AnthropicError
 import de.overlai.llm.transport.AnthropicErrorEnvelope
 import de.overlai.llm.transport.AnthropicMessageMapper
@@ -150,17 +151,32 @@ internal class AnthropicProvider(
                 val text = event.delta?.text
                 if (text.isNullOrEmpty()) EventResult.Ignore else EventResult.Delta(ChatDelta(text = text))
             }
+            "message_start" -> {
+                // Trägt die Eingabe-(Prompt-)Tokens des Requests. (E3)
+                val input = event.message?.usage?.inputTokens
+                if (input != null) {
+                    EventResult.Delta(ChatDelta(text = "", usage = Usage(promptTokens = input, completionTokens = 0)))
+                } else {
+                    EventResult.Ignore
+                }
+            }
             "message_delta" -> {
+                // Trägt stop_reason + die kumulierten Ausgabe-(Completion-)Tokens. (E3)
                 val reason = event.delta?.stopReason
-                if (reason != null) {
+                val output = event.usage?.outputTokens
+                if (reason != null || output != null) {
                     EventResult.Delta(
-                        ChatDelta(text = "", finishReason = reason),
+                        ChatDelta(
+                            text = "",
+                            finishReason = reason,
+                            usage = output?.let { Usage(promptTokens = 0, completionTokens = it) },
+                        ),
                     )
                 } else {
                     EventResult.Ignore
                 }
             }
-            else -> EventResult.Ignore // message_start, content_block_start/stop, ping, message_stop
+            else -> EventResult.Ignore // content_block_start/stop, ping, message_stop
         }
     }
 
