@@ -18,8 +18,17 @@ internal data class OpenAiChatRequest(
     // sonst weglassen -> Provider antwortet non-streaming (ein JSON-Objekt statt
     // SSE) -> unser SSE-Reader sieht keine data:-Zeile -> falscher "leerer Stream".
     @EncodeDefault(EncodeDefault.Mode.ALWAYS) val stream: Boolean = true,
+    // include_usage: true → OpenAI/kompatible senden einen finalen Chunk mit usage
+    // (prompt/completion tokens). Ohne das gibt es im Stream keine Token-Zahlen. (E3)
+    @SerialName("stream_options") @EncodeDefault(EncodeDefault.Mode.ALWAYS)
+    val streamOptions: OpenAiStreamOptions = OpenAiStreamOptions(),
     val temperature: Double? = null,
     @SerialName("max_tokens") val maxTokens: Int? = null,
+)
+
+@Serializable
+internal data class OpenAiStreamOptions(
+    @SerialName("include_usage") @EncodeDefault(EncodeDefault.Mode.ALWAYS) val includeUsage: Boolean = true,
 )
 
 @Serializable
@@ -35,9 +44,17 @@ internal data class OpenAiMessage(
 @Serializable
 internal data class OpenAiStreamChunk(
     val choices: List<OpenAiStreamChoice> = emptyList(),
+    // Finaler Chunk mit include_usage: prompt/completion Token-Zahlen. (E3)
+    val usage: OpenAiUsage? = null,
     // Manche OpenAI-kompatible Provider (v.a. OpenRouter) liefern HTTP 200 und
     // schicken den Fehler IM Stream als data-Zeile mit einem error-Objekt.
     val error: OpenAiError? = null,
+)
+
+@Serializable
+internal data class OpenAiUsage(
+    @SerialName("prompt_tokens") val promptTokens: Int? = null,
+    @SerialName("completion_tokens") val completionTokens: Int? = null,
 )
 
 @Serializable

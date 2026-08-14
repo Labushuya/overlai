@@ -42,8 +42,23 @@ internal data class AnthropicStreamEvent(
     val type: String,
     val delta: AnthropicDelta? = null,
     @SerialName("content_block") val contentBlock: AnthropicContentBlock? = null,
+    // message_start trägt message.usage.input_tokens; message_delta trägt top-level
+    // usage.output_tokens. Beides für Token-Tracking auslesen. (E3)
+    val message: AnthropicStreamMessage? = null,
+    val usage: AnthropicUsage? = null,
     // SSE-Event type=="error" trägt das Fehlerobjekt inline (overloaded_error etc.).
     val error: AnthropicError? = null,
+)
+
+@Serializable
+internal data class AnthropicStreamMessage(
+    val usage: AnthropicUsage? = null,
+)
+
+@Serializable
+internal data class AnthropicUsage(
+    @SerialName("input_tokens") val inputTokens: Int? = null,
+    @SerialName("output_tokens") val outputTokens: Int? = null,
 )
 
 @Serializable
