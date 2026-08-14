@@ -103,8 +103,14 @@ class ChatViewModel(
         autostartTriggered = true
         viewModelScope.launch {
             val history = repo.messages(sessionId)
-            if (history.size == 1 && history.single().role == Role.ASSISTANT) {
-                session.primeAndRespond()
+            if (history.size == 1) {
+                when (history.single().role) {
+                    // Handover-Fortsetzung: letzte Msg = ASSISTANT → synthetische Prime-Instruktion.
+                    Role.ASSISTANT -> session.primeAndRespond(appendPrimeInstruction = true)
+                    // Share-Einstieg: letzte Msg = echte USER-Nachricht → direkt beantworten.
+                    Role.USER -> session.primeAndRespond(appendPrimeInstruction = false)
+                    else -> Unit
+                }
             }
         }
     }

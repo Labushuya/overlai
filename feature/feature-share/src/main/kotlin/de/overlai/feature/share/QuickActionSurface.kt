@@ -20,15 +20,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
-// CHANGE-MARKER v0.1.0: Entry-Points (siehe CHANGELOG.md)
-// Kompakte Quick-Action-Surface über der Host-App: Aktion wählen, Ergebnis
-// (streamend) lesen, kopieren/einfügen. Bewusst klein — verdeckt die Host-App nicht.
+// CHANGE-MARKER: Entry-Points (P2.4, siehe CHANGELOG.md)
+// Kompakte Quick-Action-Surface über der Host-App: Aktion wählen, Ergebnis (streamend) lesen,
+// kopieren/einfügen — ODER in einen persistenten Chat übernehmen (Provider/Modell-Wahl + Chat).
+// Bewusst klein — verdeckt die Host-App nicht.
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun QuickActionSurface(
     viewModel: QuickActionViewModel,
     onCopy: (String) -> Unit,
     onInsert: ((String) -> Unit)?,
+    onOpenInChat: (String) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -53,7 +55,7 @@ fun QuickActionSurface(
                 )
             }
 
-            // Aktions-Chips.
+            // Aktions-Chips (Schnellaktionen, ephemer).
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 QuickAction.entries.forEach { action ->
                     AssistChip(
@@ -61,6 +63,11 @@ fun QuickActionSurface(
                         label = { Text(action.label) },
                     )
                 }
+            }
+
+            // Persistenter Weg: in einen echten Chat übernehmen (Ergebnis, sonst Quelltext).
+            TextButton(onClick = { onOpenInChat(state.resultText.ifEmpty { state.sourceText }) }) {
+                Text("In Chat öffnen")
             }
 
             if (state.isLoading) {

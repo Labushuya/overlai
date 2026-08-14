@@ -11,10 +11,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import de.overlai.app.notification.ChatNotificationManager
 import de.overlai.conversation.HandoverGenerator
 import de.overlai.core.ui.util.OnResume
 import de.overlai.feature.chat.ChatListScreen
@@ -56,6 +58,7 @@ object Routes {
 fun AppNavHost(
     deps: AppDependencies,
     navController: NavHostController,
+    pendingInput: kotlinx.coroutines.flow.MutableStateFlow<Pair<String, String>?>,
     modifier: Modifier = Modifier,
 ) {
     NavHost(
@@ -70,7 +73,7 @@ fun AppNavHost(
         composable(Routes.CHAT_DETAIL) { backStackEntry ->
             val sessionId = backStackEntry.arguments?.getString("sessionId")
             if (sessionId != null) {
-                ChatRoute(deps, navController, sessionId)
+                ChatRoute(deps, navController, sessionId, pendingInput)
             }
         }
 
@@ -160,6 +163,7 @@ private fun OverlayRoute(
     val scope = rememberCoroutineScope()
     var enabled by remember { mutableStateOf(false) }
     var hasPermission by remember { mutableStateOf(false) }
+    var notificationEnabled by remember { mutableStateOf(false) }
     // Nach Rückkehr aus den System-Einstellungen (Permission erteilt) neu einlesen. Erteilt der
     // Nutzer die Berechtigung und die Bubble war gewünscht, den Service jetzt nachstarten —
     // aber den Toggle NICHT umschalten (Berechtigung ≠ Aktion).
@@ -168,6 +172,7 @@ private fun OverlayRoute(
         scope.launch {
             enabled = deps.settingsStore.overlayEnabled.first()
             if (enabled && hasPermission) OverlayService.start(context)
+            notificationEnabled = deps.settingsStore.notificationEnabled.first()
         }
     }
     OverlaySettingsScreen(
@@ -188,6 +193,22 @@ private fun OverlayRoute(
             navController.navigate(SettingsRoutes.PERMISSIONS)
         },
         onBack = { navController.popBackStack() },
+        notification =
+            de.overlai.feature.settings.AccessToggle(
+                enabled = notificationEnabled,
+                onToggle = { wanted ->
+                    notificationEnabled = wanted
+                    scope.launch {
+                        deps.settingsStore.setNotificationEnabled(wanted)
+                        if (wanted) {
+                            val activeId = deps.settingsStore.activeSessionId.first()
+                            ChatNotificationManager.show(context, activeId)
+                        } else {
+                            ChatNotificationManager.cancel(context)
+                        }
+                    }
+                },
+            ),
     )
 }
 
@@ -235,6 +256,7 @@ private fun ChatRoute(
     deps: AppDependencies,
     navController: NavHostController,
     sessionId: String,
+    pendingInput: kotlinx.coroutines.flow.MutableStateFlow<Pair<String, String>?>,
 ) {
     // Session-Metadaten (Provider/Modell) laden, dann das ViewModel damit bauen. Bis geladen:
     // nichts rendern (kurzer Moment). key(sessionId) → bei Wechsel neues VM.
@@ -258,9 +280,17 @@ private fun ChatRoute(
                     )
                 },
         )
-    // E3b: In einer frisch per Handover erzeugten Fortsetzungs-Session das LLM automatisch
-    // antworten lassen (idempotent im VM per Verlaufs-Fingerabdruck).
+    // E3b: In einer frisch per Handover/Share erzeugten Session das LLM automatisch antworten
+    // lassen (idempotent im VM per Verlaufs-Fingerabdruck).
     LaunchedEffect(sessionId) { vm.maybeAutostart() }
+    // P2.4 Share „erst ergänzen": vorbereiteten Text ins Eingabefeld setzen (nicht senden).
+    val pending by pendingInput.collectAsStateWithLifecycle()
+    LaunchedEffect(pending, sessionId) {
+        pending?.takeIf { it.first == sessionId }?.let {
+            vm.onInputChange(it.second)
+            pendingInput.value = null
+        }
+    }
     ChatScreen(
         viewModel = vm,
         onOpenOnboarding = { navController.navigate(SettingsRoutes.PROVIDER) },

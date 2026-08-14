@@ -25,6 +25,7 @@ class SettingsStore(
     private val dynamicColorKey = booleanPreferencesKey("use_dynamic_color")
     private val onboardingShownKey = booleanPreferencesKey("onboarding_shown")
     private val overlayEnabledKey = booleanPreferencesKey("overlay_enabled")
+    private val notificationEnabledKey = booleanPreferencesKey("notification_enabled")
     private val activeSessionKey = stringPreferencesKey("active_session_id")
 
     // Aktiver Provider (Default: OpenAI). Fällt auf OpenAI zurück, falls die
@@ -105,6 +106,16 @@ class SettingsStore(
 
     suspend fun setOverlayEnabled(enabled: Boolean) {
         context.settingsStore.edit { it[overlayEnabledKey] = enabled }
+    }
+
+    // P2.4: Benachrichtigungs-Zugang (persistente Notification mit Quick-Reply). Default aus.
+    val notificationEnabled: Flow<Boolean> =
+        context.settingsStore.data
+            .map { it[notificationEnabledKey] ?: false }
+            .distinctUntilChanged()
+
+    suspend fun setNotificationEnabled(enabled: Boolean) {
+        context.settingsStore.edit { it[notificationEnabledKey] = enabled }
     }
 
     // Multi-Chat (P2.1b): zuletzt geöffnete Session. Überlebt Neustart; Overlay und

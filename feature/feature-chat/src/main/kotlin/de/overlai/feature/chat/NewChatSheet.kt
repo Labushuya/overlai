@@ -38,6 +38,8 @@ fun NewChatSheet(
     viewModel: NewChatViewModel,
     onDismiss: () -> Unit,
     onCreated: (String) -> Unit,
+    // P2.4 Share: optional geteilter Text → wird als erste User-Nachricht des neuen Chats gesetzt.
+    initialUserText: String? = null,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -47,7 +49,7 @@ fun NewChatSheet(
             if (selected == null) {
                 ProviderStep(
                     state = state,
-                    onQuickStart = { viewModel.quickStart(onCreated) },
+                    onQuickStart = { viewModel.quickStart(initialUserText = initialUserText, onCreated = onCreated) },
                     onPick = { viewModel.selectProvider(it) },
                 )
             } else {
@@ -55,7 +57,14 @@ fun NewChatSheet(
                     providerId = selected,
                     state = state,
                     onBack = { viewModel.clearProvider() },
-                    onPick = { modelId -> viewModel.create(selected, modelId, onCreated) },
+                    onPick = { modelId ->
+                        viewModel.create(
+                            providerId = selected,
+                            modelId = modelId,
+                            initialUserText = initialUserText,
+                            onCreated = onCreated,
+                        )
+                    },
                 )
             }
         }
