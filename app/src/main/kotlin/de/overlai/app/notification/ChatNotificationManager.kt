@@ -59,9 +59,13 @@ object ChatNotificationManager {
             )
 
         val remoteInput = RemoteInput.Builder(KEY_REPLY).setLabel("Nachricht an OverlAI…").build()
+        // Explizit an die eigene Receiver-Klasse UND das eigene Paket gebunden. Der PendingIntent
+        // MUSS mutable sein (System füllt den RemoteInput-Text ein) — setPackage verhindert, dass
+        // der mutable Intent an eine fremde Komponente umgeleitet wird (CodeQL implicit-pendingintents).
         val replyIntent =
             Intent(context, QuickReplyReceiver::class.java).apply {
                 action = ACTION_REPLY
+                setPackage(context.packageName)
                 activeSessionId?.let { putExtra(EXTRA_SESSION_ID, it) }
             }
         val replyPi =
