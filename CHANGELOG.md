@@ -6,6 +6,13 @@ Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1
 die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 Dieser Changelog wird ab dem ersten Release von `release-please` gepflegt.
 
+## [0.10.0](https://github.com/Labushuya/overlai/compare/v0.9.0...v0.10.0) (2026-08-14)
+
+
+### Features
+
+* **chat:** Kontextfenster/Usage + faktischer Handover, Overlay-Parität (E3) ([#42](https://github.com/Labushuya/overlai/issues/42)) ([d2ba2ea](https://github.com/Labushuya/overlai/commit/d2ba2ea45ae4fe134a8000b447ccc9a964fcc3c0))
+
 ## [0.9.0](https://github.com/Labushuya/overlai/compare/v0.8.0...v0.9.0) (2026-08-10)
 
 
