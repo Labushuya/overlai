@@ -3,6 +3,7 @@ package de.overlai.app.notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationCompat
@@ -59,12 +60,12 @@ object ChatNotificationManager {
             )
 
         val remoteInput = RemoteInput.Builder(KEY_REPLY).setLabel("Nachricht an OverlAI…").build()
-        // Explizit an die eigene Receiver-Klasse UND das eigene Paket gebunden. Der PendingIntent
-        // MUSS mutable sein (System füllt den RemoteInput-Text ein) — setPackage verhindert, dass
-        // der mutable Intent an eine fremde Komponente umgeleitet wird (CodeQL implicit-pendingintents).
+        // Der PendingIntent MUSS mutable sein (System füllt den RemoteInput-Text ein). Um den
+        // mutablen Intent NICHT umleitbar zu machen, die Ziel-Komponente HART festnageln
+        // (setComponent) + Paket setzen — Sanitizer für CodeQL implicit-pendingintents.
         val replyIntent =
-            Intent(context, QuickReplyReceiver::class.java).apply {
-                action = ACTION_REPLY
+            Intent(ACTION_REPLY).apply {
+                component = ComponentName(context, QuickReplyReceiver::class.java)
                 setPackage(context.packageName)
                 activeSessionId?.let { putExtra(EXTRA_SESSION_ID, it) }
             }
