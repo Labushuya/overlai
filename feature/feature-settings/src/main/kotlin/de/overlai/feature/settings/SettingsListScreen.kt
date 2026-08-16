@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun SettingsListScreen(
     activeProviderName: String,
+    activeModelId: String?,
     hasActiveKey: Boolean,
     onOpen: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -45,10 +46,20 @@ fun SettingsListScreen(
     ) { padding ->
         LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
             item {
-                ElevatedCard(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+                // Klickbare Hero-Pill: aktiver Standard-Anbieter (+ Modell) → tippen öffnet den
+                // ProviderHub zur Standard-Anbieter-/Modell-Wahl (P2.5).
+                ElevatedCard(
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .padding(16.dp)
+                            .clickable { onOpen(SettingsRoutes.PROVIDER) },
+                ) {
                     ListItem(
-                        overlineContent = { Text("Aktiver Provider") },
+                        overlineContent = { Text("Standard-Anbieter & Modell") },
                         headlineContent = { Text(activeProviderName) },
+                        supportingContent =
+                            activeModelId?.takeIf { it.isNotBlank() }?.let { { Text(it) } },
                         trailingContent = {
                             AssistChip(
                                 onClick = { onOpen(SettingsRoutes.PROVIDER) },

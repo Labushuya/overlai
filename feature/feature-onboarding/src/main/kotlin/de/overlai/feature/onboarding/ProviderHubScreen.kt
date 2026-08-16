@@ -117,7 +117,19 @@ private fun ProviderCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(provider.displayName, fontWeight = FontWeight.SemiBold)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(provider.displayName, fontWeight = FontWeight.SemiBold)
+                    if (active) {
+                        AssistChip(
+                            onClick = {},
+                            enabled = false,
+                            label = { Text("Standard") },
+                        )
+                    }
+                }
                 KeyStatusBadge(active = active, hasKey = hasKey)
                 if (active && activeModel != null) {
                     Text(
@@ -141,6 +153,15 @@ private fun ProviderCard(
                 HorizontalDivider()
                 KeySection(provider, state, viewModel, hasKey)
                 CapabilityBadges(provider)
+                // P2.5: Anbieter explizit als Standard setzen (unabhängig vom Modell-Tap).
+                if (hasKey && !active) {
+                    androidx.compose.material3.OutlinedButton(
+                        onClick = { viewModel.setDefaultProvider(provider.id) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Als Standard-Anbieter setzen")
+                    }
+                }
                 ModelSection(provider, state, viewModel, hasKey)
             }
         }
@@ -370,6 +391,7 @@ private fun keyHint(providerId: String): String =
         "openai" -> "platform.openai.com/api-keys"
         "anthropic" -> "console.anthropic.com/settings/keys"
         "grok" -> "console.x.ai"
+        "groq" -> "console.groq.com/keys"
         "deepseek" -> "platform.deepseek.com/api_keys"
         "kimi" -> "platform.moonshot.ai"
         "openrouter" -> "openrouter.ai/keys"
