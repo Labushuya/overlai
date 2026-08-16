@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -63,11 +64,18 @@ fun ChatScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text("OverlAI", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            state.title.ifBlank { "OverlAI" },
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        )
                         Row(verticalAlignment = Alignment.CenterVertically) {
+                            // E2: Chip ist ein echter Button → Modell-/Provider-Wechsel-Sheet.
                             ProviderModelChip(
                                 providerName = state.providerName,
                                 modelId = state.modelId,
+                                onClick = { viewModel.openModelSwitch() },
                             )
                             UsageLabel(state)
                         }
@@ -92,6 +100,7 @@ fun ChatScreen(
                 MissingKeyBanner(onOpenOnboarding)
             }
             state.error?.let { ErrorBanner(it) }
+            state.costHint?.let { CostHintBanner(it, onDismiss = viewModel::dismissCostHint) }
             if (state.suggestHandover) {
                 HandoverSuggestionBanner(
                     onHandover = viewModel::generateHandover,
@@ -153,6 +162,16 @@ private fun ChatDialogs(
                 onCloseRename()
             },
             onDismiss = onCloseRename,
+        )
+    }
+    // E2: Modell-/Provider-Wechsel-Sheet.
+    state.modelSwitch?.takeIf { it.open }?.let { switch ->
+        ModelSwitchSheet(
+            state = switch,
+            onDismiss = viewModel::dismissModelSwitch,
+            onSelectProvider = viewModel::selectSwitchProvider,
+            onClearProvider = viewModel::clearSwitchProvider,
+            onPickModel = { providerId, modelId -> viewModel.changeModel(providerId, modelId) },
         )
     }
 }
@@ -219,6 +238,33 @@ private fun ErrorBanner(message: String) {
             textAlign = TextAlign.Start,
             style = MaterialTheme.typography.bodySmall,
         )
+    }
+}
+
+// E2: kurzer Kostenhinweis nach einem Modellwechsel (wegwischbar).
+@Composable
+private fun CostHintBanner(
+    message: String,
+    onDismiss: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth().padding(start = 12.dp),
+        ) {
+            Text(
+                message,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onTertiaryContainer,
+            )
+            IconButton(onClick = onDismiss) {
+                Icon(Icons.Filled.Close, contentDescription = "Hinweis schließen")
+            }
+        }
     }
 }
 
