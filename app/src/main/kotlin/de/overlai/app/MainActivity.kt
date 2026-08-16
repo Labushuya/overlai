@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -25,6 +26,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import dagger.hilt.android.AndroidEntryPoint
@@ -184,13 +186,15 @@ class UpdaterBundle(
     val installer: PackageInstallerSession,
 )
 
-// Tabs der Bottom-Navigation.
+// Tabs der Bottom-Navigation (P2.5: drei Tabs).
 private enum class TopTab(
     val route: String,
     val label: String,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
 ) {
-    CHAT(Routes.CHAT, "Chat"),
-    SETTINGS(SettingsRoutes.HOME, "Einstellungen"),
+    CHAT(Routes.CHAT, "Chats", Icons.AutoMirrored.Filled.Chat),
+    PROVIDER(SettingsRoutes.PROVIDER, "Provider", Icons.Filled.Hub),
+    SETTINGS(SettingsRoutes.HOME, "Einstellungen", Icons.Filled.Settings),
 }
 
 @Composable
@@ -205,7 +209,7 @@ private fun OverlAiApp(
         val backStackEntry by navController.currentBackStackEntryAsState()
         val currentRoute = backStackEntry?.destination?.route
         // Bottom-Bar nur auf den Tab-Roots zeigen; Sub-Screens haben eigenen Back-Arrow.
-        val showBottomBar = currentRoute in setOf(Routes.CHAT, SettingsRoutes.HOME)
+        val showBottomBar = currentRoute in setOf(Routes.CHAT, SettingsRoutes.PROVIDER, SettingsRoutes.HOME)
 
         // P2.4: von außen angefordertes Ziel (Notification/Share) einmalig öffnen.
         val pending by pendingOpenSession.collectAsStateWithLifecycle()
@@ -226,23 +230,9 @@ private fun OverlAiApp(
                                 backStackEntry?.destination?.hierarchy?.any { it.route == tab.route } == true
                             NavigationBarItem(
                                 selected = selected,
-                                onClick = {
-                                    navController.navigate(tab.route) {
-                                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
-                                },
+                                onClick = { navController.navigateToTab(tab.route) },
                                 icon = {
-                                    Icon(
-                                        imageVector =
-                                            if (tab == TopTab.CHAT) {
-                                                Icons.AutoMirrored.Filled.Chat
-                                            } else {
-                                                Icons.Filled.Settings
-                                            },
-                                        contentDescription = tab.label,
-                                    )
+                                    Icon(imageVector = tab.icon, contentDescription = tab.label)
                                 },
                                 label = { Text(tab.label) },
                             )
@@ -255,8 +245,20 @@ private fun OverlAiApp(
                 deps = deps,
                 navController = navController,
                 pendingInput = pendingInput,
+                onNavigateTab = { route -> navController.navigateToTab(route) },
                 modifier = Modifier.padding(innerPadding),
             )
         }
+    }
+}
+
+// Zu einem Tab-Root navigieren (einheitlich für Bottom-Bar UND Chip/Pill): Zustand des
+// verlassenen Tabs sichern, nicht doppelt stapeln, Zielzustand wiederherstellen. Verhindert
+// das „Überdecken", wenn ein Tab-Root (z.B. Provider) von woanders geöffnet wird.
+private fun NavHostController.navigateToTab(route: String) {
+    navigate(route) {
+        popUpTo(graph.findStartDestination().id) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
     }
 }
