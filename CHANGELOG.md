@@ -6,6 +6,13 @@ Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1
 die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 Dieser Changelog wird ab dem ersten Release von `release-please` gepflegt.
 
+## [0.12.0](https://github.com/Labushuya/overlai/compare/v0.11.0...v0.12.0) (2026-08-16)
+
+
+### Features
+
+* **ui:** Warm-Palette, Design-System, Logo/Bubble, 3 Tabs, Standard-Provider (P2.5-E1) ([#46](https://github.com/Labushuya/overlai/issues/46)) ([a2e8057](https://github.com/Labushuya/overlai/commit/a2e8057a99e0c3c84fd8cdc4dfc8556f9d7706c0))
+
 ## [0.11.0](https://github.com/Labushuya/overlai/compare/v0.10.0...v0.11.0) (2026-08-14)
 
 
