@@ -3,6 +3,7 @@ package de.overlai.feature.onboarding
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import de.overlai.core.data.SettingsStore
+import de.overlai.llm.CreditInfo
 import de.overlai.llm.HttpModelCatalog
 import de.overlai.llm.LlmError
 import de.overlai.llm.ModelInfo
@@ -53,6 +54,22 @@ class ProviderHubViewModel(
         }
     }
 
+    // P2.5 E3: Ladezustand des Guthaben-Abrufs EINES Providers.
+    sealed interface CreditsState {
+        // Provider bietet keine Guthaben-API → gar nicht abfragen, nur Dashboard-Hinweis zeigen.
+        data object Unsupported : CreditsState
+
+        data object Loading : CreditsState
+
+        data class Loaded(
+            val info: CreditInfo,
+        ) : CreditsState
+
+        data class Error(
+            val message: String,
+        ) : CreditsState
+    }
+
     data class UiState(
         val providers: List<ProviderConfig> = ProviderRegistry.all,
         val activeProviderId: String = ProviderRegistry.OPENAI.id,
@@ -63,6 +80,8 @@ class ProviderHubViewModel(
         val keyLast4: Map<String, String> = emptyMap(),
         val expandedProviderId: String? = null,
         val models: Map<String, ModelListState> = emptyMap(),
+        // P2.5 E3: Guthaben-Ladezustand je Provider (lazy beim Aufklappen, wo unterstützt).
+        val credits: Map<String, CreditsState> = emptyMap(),
         // Welche Karte zeigt gerade die Klartext-Key-Eingabe (Neu/Ändern)?
         val editingKeyFor: String? = null,
         val keyInput: String = "",
@@ -71,6 +90,9 @@ class ProviderHubViewModel(
 
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state.asStateFlow()
+
+    // P2.5 E3: monoton steigender Ladezähler je Provider für Guthaben-Abrufe (Stale-Write-Schutz).
+    private val creditsGen = mutableMapOf<String, Int>()
 
     init {
         refreshKeyState()
@@ -119,8 +141,60 @@ class ProviderHubViewModel(
             if (current == null || current is ModelListState.Idle) {
                 loadModels(providerId)
             }
+            // Guthaben (neu) laden, wenn noch nie geladen ODER ein früherer Versuch fehlschlug
+            // (transienter Netz-/429-Fehler → Wiederaufklappen wiederholt den Abruf).
+            when (_state.value.credits[providerId]) {
+                null, is CreditsState.Error -> loadCredits(providerId)
+                else -> Unit
+            }
         }
     }
+
+    // P2.5 E3: Guthaben laden, wo unterstützt (aktuell OpenRouter). Provider ohne Guthaben-API →
+    // Unsupported (die UI zeigt dann nur den Dashboard-Hinweis). Keine erfundenen Zahlen.
+    // Generation-Token je Provider verhindert Stale-Writes: bricht der Key weg oder wird neu
+    // geladen, während ein alter Abruf noch läuft, verwirft dessen späte Antwort ihr Ergebnis.
+    fun loadCredits(providerId: String) {
+        val config = ProviderRegistry.byId(providerId) ?: return
+        if (!creditsSupported(providerId)) {
+            setCreditsState(providerId, CreditsState.Unsupported)
+            return
+        }
+        val gen = (creditsGen[providerId] ?: 0) + 1
+        creditsGen[providerId] = gen
+        setCreditsState(providerId, CreditsState.Loading)
+        viewModelScope.launch {
+            val key = keyVault.getKey(providerId)
+            if (key.isNullOrBlank()) {
+                if (creditsGen[providerId] == gen) {
+                    setCreditsState(providerId, CreditsState.Error("Kein API-Key hinterlegt."))
+                }
+                return@launch
+            }
+            val result = runCatching { catalog.fetchCredits(config, key) }
+            // Späte Antwort eines überholten Abrufs verwerfen (Key gelöscht/neu geladen).
+            if (creditsGen[providerId] != gen) return@launch
+            result.fold(
+                onSuccess = { info ->
+                    setCreditsState(
+                        providerId,
+                        if (info == null) CreditsState.Unsupported else CreditsState.Loaded(info),
+                    )
+                },
+                onFailure = { e ->
+                    setCreditsState(
+                        providerId,
+                        when (e) {
+                            is LlmError.Unauthorized -> CreditsState.Error("API-Key ungültig.")
+                            else -> CreditsState.Error(e.message ?: "Guthaben nicht abrufbar.")
+                        },
+                    )
+                },
+            )
+        }
+    }
+
+    private fun creditsSupported(providerId: String): Boolean = providerId == "openrouter"
 
     fun loadModels(providerId: String) {
         val config = ProviderRegistry.byId(providerId) ?: return
@@ -167,15 +241,23 @@ class ProviderHubViewModel(
             _state.value = _state.value.copy(editingKeyFor = null, keyInput = "")
             refreshKeyState()
             loadModels(providerId)
+            // Guthaben mit dem (neuen/korrigierten) Key frisch abrufen — sonst bliebe ein alter
+            // „API-Key ungültig"-Fehlerzustand hängen (loadCredits erhöht die Generation → alter
+            // In-Flight-Abruf wird verworfen).
+            loadCredits(providerId)
         }
     }
 
     fun onDeleteKey(providerId: String) {
         viewModelScope.launch {
             keyVault.removeKey(providerId)
+            // Generation erhöhen → ein noch laufender Guthaben-Abruf schreibt sein Ergebnis nicht
+            // mehr zurück (sonst tauchten Zahlen zu einem gelöschten Key wieder auf).
+            creditsGen[providerId] = (creditsGen[providerId] ?: 0) + 1
             _state.value =
                 _state.value.copy(
                     models = _state.value.models - providerId,
+                    credits = _state.value.credits - providerId,
                     editingKeyFor = null,
                     keyInput = "",
                 )
@@ -217,6 +299,13 @@ class ProviderHubViewModel(
         s: ModelListState,
     ) {
         _state.value = _state.value.copy(models = _state.value.models + (providerId to s))
+    }
+
+    private fun setCreditsState(
+        providerId: String,
+        s: CreditsState,
+    ) {
+        _state.value = _state.value.copy(credits = _state.value.credits + (providerId to s))
     }
 
     private fun mapError(e: Throwable): ModelListState.Error =

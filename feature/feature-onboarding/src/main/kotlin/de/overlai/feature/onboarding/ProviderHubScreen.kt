@@ -153,6 +153,9 @@ private fun ProviderCard(
                 HorizontalDivider()
                 KeySection(provider, state, viewModel, hasKey)
                 CapabilityBadges(provider)
+                if (hasKey) {
+                    CreditsSection(provider, state)
+                }
                 // P2.5: Anbieter explizit als Standard setzen (unabhängig vom Modell-Tap).
                 if (hasKey && !active) {
                     androidx.compose.material3.OutlinedButton(
@@ -255,6 +258,81 @@ private fun CapabilityBadges(provider: ProviderConfig) {
             AssistChip(onClick = {}, label = { Text(capabilityLabel(cap)) })
         }
     }
+}
+
+// P2.5 E3: Guthaben/Kontingent. Wo der Provider eine API bietet (OpenRouter) echte Zahlen;
+// sonst ehrlicher Hinweis + Link zum Dashboard statt erfundener Werte.
+@Composable
+private fun CreditsSection(
+    provider: ProviderConfig,
+    state: ProviderHubViewModel.UiState,
+) {
+    Text("Guthaben", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
+    when (val c = state.credits[provider.id]) {
+        null, ProviderHubViewModel.CreditsState.Loading ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                CircularProgressIndicator(modifier = Modifier.padding(4.dp))
+                Text("Lade Guthaben …", style = MaterialTheme.typography.bodyMedium)
+            }
+        is ProviderHubViewModel.CreditsState.Loaded -> CreditsFigures(c.info)
+        is ProviderHubViewModel.CreditsState.Error ->
+            CreditsFallback("${c.message} Guthaben im Dashboard prüfen:", billingLink(provider.id))
+        ProviderHubViewModel.CreditsState.Unsupported ->
+            CreditsFallback(
+                "Dieser Anbieter bietet keinen Guthaben-Abruf. Stand im Dashboard prüfen:",
+                billingLink(provider.id),
+            )
+    }
+}
+
+@Composable
+private fun CreditsFigures(info: de.overlai.llm.CreditInfo) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        info.remaining?.let {
+            Text(
+                "Verbleibend: ~$${fmt(it)}",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+        val detail =
+            listOfNotNull(
+                info.totalCredits?.let { "Aufgeladen: $${fmt(it)}" },
+                info.totalUsage?.let { "Verbraucht: $${fmt(it)}" },
+            ).joinToString(" · ")
+        if (detail.isNotEmpty()) {
+            Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        if (info.totalCredits == null && info.totalUsage == null) {
+            Text(
+                "Keine Guthaben-Angaben geliefert.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun CreditsFallback(
+    message: String,
+    link: String,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(message, style = MaterialTheme.typography.bodySmall)
+        if (link.isNotEmpty()) {
+            Text(link, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+        }
+    }
+}
+
+// Auf 2 Nachkommastellen ohne Locale-Abhängigkeit (kein String.format → detekt/Locale-frei).
+private fun fmt(v: Double): String {
+    val cents = kotlin.math.round(v * 100).toLong()
+    return "${cents / 100}.${(cents % 100).toString().padStart(2, '0')}"
 }
 
 @Composable
@@ -396,6 +474,20 @@ private fun keyHint(providerId: String): String =
         "kimi" -> "platform.moonshot.ai"
         "openrouter" -> "openrouter.ai/keys"
         "gemini" -> "aistudio.google.com/apikey"
+        else -> ""
+    }
+
+// P2.5 E3: Billing-/Guthaben-Dashboard je Provider (für den Fallback-Hinweis).
+private fun billingLink(providerId: String): String =
+    when (providerId) {
+        "openai" -> "platform.openai.com/settings/organization/billing"
+        "anthropic" -> "console.anthropic.com/settings/billing"
+        "grok" -> "console.x.ai"
+        "groq" -> "console.groq.com/settings/billing"
+        "deepseek" -> "platform.deepseek.com/usage"
+        "kimi" -> "platform.moonshot.ai"
+        "openrouter" -> "openrouter.ai/credits"
+        "gemini" -> "aistudio.google.com"
         else -> ""
     }
 

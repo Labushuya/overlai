@@ -57,3 +57,16 @@ internal data class OpenRouterPricing(
     val prompt: String? = null,
     val completion: String? = null,
 )
+
+// --- OpenRouter Guthaben: GET /api/v1/credits → { "data": { "total_credits", "total_usage" } } ---
+// (P2.5 E3). Beträge in USD. Felder nullable/default → tolerant.
+@Serializable
+internal data class OpenRouterCreditsResponse(
+    val data: OpenRouterCreditsData? = null,
+)
+
+@Serializable
+internal data class OpenRouterCreditsData(
+    @SerialName("total_credits") val totalCredits: Double? = null,
+    @SerialName("total_usage") val totalUsage: Double? = null,
+)
