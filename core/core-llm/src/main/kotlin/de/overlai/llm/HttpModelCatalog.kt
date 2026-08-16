@@ -2,6 +2,7 @@ package de.overlai.llm
 
 import de.overlai.llm.catalog.AnthropicModelsResponse
 import de.overlai.llm.catalog.ModelParsers
+import de.overlai.llm.catalog.OpenRouterCreditsResponse
 import de.overlai.llm.catalog.StaticModels
 import de.overlai.llm.transport.HttpErrorMapper
 import kotlinx.coroutines.Dispatchers
@@ -54,6 +55,23 @@ class HttpModelCatalog(
             "gemini" -> "/models"
             else -> null
         }
+
+    // P2.5 E3: Guthaben/Kontingent abrufen, WO der Provider eine öffentliche API bietet.
+    // Aktuell nur OpenRouter (GET /api/v1/credits → total_credits/total_usage). Alle anderen
+    // Provider: null (kein Guthaben-Abruf) — die UI zeigt dann einen Dashboard-Hinweis statt
+    // erfundener Zahlen. Wirft typisiertes LlmError bei HTTP-Fehler (401/403/429/…), damit die
+    // UI „Key ungültig" vs. „nicht verfügbar" unterscheiden kann.
+    suspend fun fetchCredits(
+        config: ProviderConfig,
+        apiKey: String,
+    ): CreditInfo? {
+        if (config.id != "openrouter") return null
+        return withContext(Dispatchers.IO) {
+            val body = fetch(config, "/v1/credits", apiKey, cursor = null)
+            val parsed = runCatching { json.decodeFromString(OpenRouterCreditsResponse.serializer(), body) }.getOrNull()
+            parsed?.data?.let { CreditInfo(totalCredits = it.totalCredits, totalUsage = it.totalUsage) }
+        }
+    }
 
     private fun fetch(
         config: ProviderConfig,
