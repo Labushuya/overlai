@@ -153,4 +153,44 @@ class ConversationSessionTest {
             // Die endlose observeHistory-Collect-Coroutine beenden, sonst meckert runTest.
             coroutineContext.cancelChildren()
         }
+
+    // P2.5-E2: Modellwechsel = swapStreamer. Darf KEINE Nachricht in den Chat schreiben (Regression:
+    // der frühere Neuaufbau der Session persistierte einen laufenden Turn als „(abgebrochen)").
+    @Test
+    fun `swapStreamer aendert weder Verlauf noch schreibt es eine Nachricht`() =
+        runTest {
+            val first =
+                FakeStreamer(listOf(ConversationEngine.Event.Delta("A"), ConversationEngine.Event.Done))
+            val session = ConversationSession(first, this)
+            session.send("frage")
+            advanceUntilIdle()
+            assertThat(session.state.value.messages).hasSize(2) // USER + ASSISTANT("A")
+
+            // Modell wechseln: Streamer tauschen. State bleibt exakt gleich, nichts kommt hinzu.
+            val second =
+                FakeStreamer(listOf(ConversationEngine.Event.Delta("B"), ConversationEngine.Event.Done))
+            session.swapStreamer(second)
+            advanceUntilIdle()
+
+            assertThat(session.state.value.messages).hasSize(2)
+            assertThat(session.state.value.messages.none { it.text == "(abgebrochen)" }).isTrue()
+            assertThat(session.state.value.isStreaming).isFalse()
+        }
+
+    // Nach swapStreamer bedient der NEUE Streamer den nächsten Turn.
+    @Test
+    fun `swapStreamer greift ab dem naechsten Turn`() =
+        runTest {
+            val first = FakeStreamer(listOf(ConversationEngine.Event.Delta("alt"), ConversationEngine.Event.Done))
+            val session = ConversationSession(first, this)
+
+            val second = FakeStreamer(listOf(ConversationEngine.Event.Delta("neu"), ConversationEngine.Event.Done))
+            session.swapStreamer(second)
+            session.send("frage")
+            advanceUntilIdle()
+
+            assertThat(second.lastHistory).isNotNull()
+            assertThat(first.lastHistory).isNull() // der alte Streamer wurde nie aufgerufen
+            assertThat(session.state.value.messages.last().text).isEqualTo("neu")
+        }
 }

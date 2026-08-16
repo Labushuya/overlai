@@ -275,6 +275,8 @@ private fun ChatRoute(
                         engine = deps.conversationEngine,
                         repo = deps.sessionRepository,
                         handover = HandoverGenerator(deps.conversationEngine, deps.sessionRepository),
+                        keyVault = deps.keyVault,
+                        catalog = deps.modelCatalog,
                         sessionId = session.id,
                         providerId = session.providerId,
                         modelId = session.modelId,
