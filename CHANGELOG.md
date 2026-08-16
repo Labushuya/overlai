@@ -6,6 +6,13 @@ Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1
 die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 Dieser Changelog wird ab dem ersten Release von `release-please` gepflegt.
 
+## [0.14.0](https://github.com/Labushuya/overlai/compare/v0.13.0...v0.14.0) (2026-08-16)
+
+
+### Features
+
+* **providers:** Guthaben-/Kontingente-Ansicht im ProviderHub (P2.5-E3) ([#50](https://github.com/Labushuya/overlai/issues/50)) ([2f1722b](https://github.com/Labushuya/overlai/commit/2f1722b3e9751c0502cdde90926160ed8af66f4e))
+
 ## [0.13.0](https://github.com/Labushuya/overlai/compare/v0.12.0...v0.13.0) (2026-08-16)
 
 
