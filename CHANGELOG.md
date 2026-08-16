@@ -6,6 +6,13 @@ Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1
 die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 Dieser Changelog wird ab dem ersten Release von `release-please` gepflegt.
 
+## [0.13.0](https://github.com/Labushuya/overlai/compare/v0.12.0...v0.13.0) (2026-08-16)
+
+
+### Features
+
+* **chat:** Modellwechsel im offenen Chat + Kostenhinweis (P2.5-E2) ([#48](https://github.com/Labushuya/overlai/issues/48)) ([d517f7a](https://github.com/Labushuya/overlai/commit/d517f7ab0d3f49f3f5917b73fa14cdb73a10623b))
+
 ## [0.12.0](https://github.com/Labushuya/overlai/compare/v0.11.0...v0.12.0) (2026-08-16)
 
 
