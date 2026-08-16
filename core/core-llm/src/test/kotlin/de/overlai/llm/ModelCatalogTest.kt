@@ -204,4 +204,36 @@ class ModelCatalogTest {
             assertThat(models).isNotEmpty()
             assertThat(models).contains(ProviderRegistry.KIMI.defaultModel)
         }
+
+    // --- P2.5 E3: Guthaben (nur OpenRouter) ---
+
+    @Test
+    fun `openrouter credits parse total and usage and compute remaining`() =
+        runTest {
+            server.enqueue(MockResponse().setBody("""{"data":{"total_credits":10.0,"total_usage":3.5}}"""))
+            val info = catalog.fetchCredits(cfg(ProviderRegistry.OPENROUTER), "sk-or")
+            assertThat(info).isNotNull()
+            assertThat(info!!.totalCredits).isEqualTo(10.0)
+            assertThat(info.totalUsage).isEqualTo(3.5)
+            assertThat(info.remaining).isEqualTo(6.5)
+        }
+
+    @Test
+    fun `openrouter credits request uses bearer + v1 credits path`() =
+        runTest {
+            server.enqueue(MockResponse().setBody("""{"data":{"total_credits":1.0,"total_usage":0.0}}"""))
+            catalog.fetchCredits(cfg(ProviderRegistry.OPENROUTER), "sk-secret")
+            val rec = server.takeRequest()
+            assertThat(rec.path).isEqualTo("/v1/credits")
+            assertThat(rec.getHeader("Authorization")).isEqualTo("Bearer sk-secret")
+        }
+
+    @Test
+    fun `credits returns null for providers without a credits api`() =
+        runTest {
+            // OpenAI hat keinen Guthaben-Abruf -> null, ohne HTTP-Aufruf.
+            val info = catalog.fetchCredits(cfg(ProviderRegistry.OPENAI), "sk")
+            assertThat(info).isNull()
+            assertThat(server.requestCount).isEqualTo(0)
+        }
 }
