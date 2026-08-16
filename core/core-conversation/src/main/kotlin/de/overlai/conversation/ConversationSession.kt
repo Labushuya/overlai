@@ -23,7 +23,7 @@ import kotlinx.coroutines.launch
 // Testbar ohne Android: hängt nur an dem schmalen Streamer-Interface (die Engine
 // implementiert es), nicht am ganzen ProviderFactory/SettingsStore/Context-Stack.
 class ConversationSession(
-    private val streamer: Streamer,
+    private var streamer: Streamer,
     private val scope: CoroutineScope,
     // Optionale Persistenz. null = flüchtig (nur im Speicher, wie P2.1a). Gesetzt =
     // Verlauf beim Start laden + jede abgeschlossene Nachricht speichern (P2.1b Multi-Chat).
@@ -185,6 +185,14 @@ class ConversationSession(
     // Laufenden Stream abbrechen (Stopp-Button). onCompletion räumt das Flag ab.
     fun cancel() {
         streamJob?.cancel()
+    }
+
+    // P2.5-E2: Provider/Modell der laufenden Session wechseln, OHNE Verlauf/State anzufassen und
+    // ohne einen laufenden Turn abzubrechen (der würde sonst als „(abgebrochen)" persistiert).
+    // Nur der Streamer für den NÄCHSTEN Turn wird getauscht. Kein Neuaufbau der Session nötig —
+    // Verlauf, observeHistory-Collector und Usage bleiben unberührt.
+    fun swapStreamer(newStreamer: Streamer) {
+        streamer = newStreamer
     }
 
     // Verlauf leeren + laufenden Stream stoppen (neuer Chat / Reset).

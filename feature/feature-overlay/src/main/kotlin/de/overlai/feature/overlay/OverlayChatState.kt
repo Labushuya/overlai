@@ -219,9 +219,9 @@ internal class OverlayChatState(
     suspend fun providersWithKey(): Set<String> =
         providers.mapNotNull { p -> p.id.takeIf { keyVault.hasKey(p.id) } }.toSet()
 
-    // Provider/Modell der AKTIVEN Session setzen: persistieren + Session neu bauen (der
-    // activeSessionId-Flow re-emittiert nicht bei reiner Metadaten-Änderung, daher hier
-    // explizit neu aufbauen mit dem neuen Streamer).
+    // Provider/Modell der AKTIVEN Session setzen: persistieren + nur den Streamer der
+    // bestehenden Session tauschen (kein Neuaufbau — der würde einen ggf. laufenden Turn als
+    // „(abgebrochen)" persistieren und einen zweiten observeHistory-Collector leaken).
     fun setModel(
         providerId: String,
         modelId: String?,
@@ -230,7 +230,12 @@ internal class OverlayChatState(
             val id = settingsStore.activeSessionId.first() ?: return@launch
             repo.updateProviderModel(id, providerId, modelId, System.currentTimeMillis())
             _ui.value = _ui.value.copy(contextLimit = ModelContextTable.resolve(modelId, null))
-            sessionFlow.value = buildSession(id, providerId, modelId)
+            val current = sessionFlow.value
+            if (current != null) {
+                current.swapStreamer(engine.streamerFor(providerId, modelId))
+            } else {
+                sessionFlow.value = buildSession(id, providerId, modelId)
+            }
         }
     }
 
