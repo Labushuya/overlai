@@ -3,7 +3,7 @@
   "versionCode": 1100,
   "minSdk": 26,
   "apkUrl": "https://github.com/Labushuya/overlai/releases/download/v0.11.0/overlai-v0.11.0.apk",
-  "sha256": "da50b8790e50e7ce8f6f83424d6e04c64fcc32349c28920542353201fd2f3468",
+  "sha256": "edf3f4e994a8a73fa557b147f507e1c0f7661e185fa704223e2b50a227fd2df5",
   "sizeBytes": 45636811,
   "mandatory": false
 }
