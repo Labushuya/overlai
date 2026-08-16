@@ -87,6 +87,19 @@ object ProviderRegistry {
             defaultModel = "kimi-k2.6",
         )
 
+    // Groq: schnelle Inferenz-Plattform (OpenAI-kompatibel), api.groq.com. NICHT xAI Grok.
+    // chatPath weicht ab: /openai/v1/chat/completions.
+    val GROQ =
+        ProviderConfig(
+            id = "groq",
+            displayName = "Groq",
+            baseUrl = "https://api.groq.com",
+            authScheme = AuthScheme.Bearer,
+            capabilities = setOf(Capability.CHAT, Capability.TOOL_USE),
+            defaultModel = "llama-3.3-70b-versatile",
+            chatPath = "/openai/v1/chat/completions",
+        )
+
     val OPENROUTER =
         ProviderConfig(
             id = "openrouter",
@@ -120,7 +133,7 @@ object ProviderRegistry {
         )
 
     // Reihenfolge = Anzeige-Reihenfolge im Provider-Picker. OpenAI zuerst (MVP).
-    val all: List<ProviderConfig> = listOf(OPENAI, GEMINI, OPENROUTER, ANTHROPIC, GROK, DEEPSEEK, KIMI)
+    val all: List<ProviderConfig> = listOf(OPENAI, GEMINI, OPENROUTER, ANTHROPIC, GROK, GROQ, DEEPSEEK, KIMI)
 
     fun byId(id: String): ProviderConfig? = all.firstOrNull { it.id == id }
 }

@@ -59,6 +59,7 @@ fun AppNavHost(
     deps: AppDependencies,
     navController: NavHostController,
     pendingInput: kotlinx.coroutines.flow.MutableStateFlow<Pair<String, String>?>,
+    onNavigateTab: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     NavHost(
@@ -78,7 +79,7 @@ fun AppNavHost(
         }
 
         composable(SettingsRoutes.HOME) {
-            SettingsHomeRoute(deps, navController)
+            SettingsHomeRoute(deps, navController, onNavigateTab)
         }
 
         composable(SettingsRoutes.PROVIDER) {
@@ -310,22 +311,29 @@ private fun ChatRoute(
 private fun SettingsHomeRoute(
     deps: AppDependencies,
     navController: NavHostController,
+    onNavigateTab: (String) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     var providerName by remember { mutableStateOf("") }
+    var activeModel by remember { mutableStateOf<String?>(null) }
     var hasKey by remember { mutableStateOf(false) }
-    // Bei jeder Rückkehr neu laden (z.B. nach Key-Eingabe im Provider-Screen).
+    // Bei jeder Rückkehr neu laden (z.B. nach Key-Eingabe/Standard-Wahl im Provider-Screen).
     OnResume {
         scope.launch {
             val id = deps.settingsStore.activeProviderId.first()
             providerName = ProviderRegistry.byId(id)?.displayName ?: id
+            activeModel = deps.settingsStore.activeModelId(id).first()
             hasKey = deps.keyVault.hasKey(id)
         }
     }
     SettingsListScreen(
         activeProviderName = providerName,
+        activeModelId = activeModel,
         hasActiveKey = hasKey,
-        onOpen = { navController.navigate(it) },
+        // Provider ist ein Tab-Root → Tab-Navigation (kein Überdecken); Rest sind Sub-Screens.
+        onOpen = { route ->
+            if (route == SettingsRoutes.PROVIDER) onNavigateTab(route) else navController.navigate(route)
+        },
     )
 }
 

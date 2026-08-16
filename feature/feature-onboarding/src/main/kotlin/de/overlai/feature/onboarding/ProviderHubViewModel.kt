@@ -199,6 +199,15 @@ class ProviderHubViewModel(
         }
     }
 
+    // P2.5: Diesen Provider als Standard-Anbieter setzen (ohne Modell zu ändern) — für neue
+    // Chats/Schnellstart. Das gewählte Standard-Modell bleibt das bereits pro Provider gemerkte.
+    fun setDefaultProvider(providerId: String) {
+        viewModelScope.launch {
+            settingsStore.setActiveProvider(providerId)
+            _state.value = _state.value.copy(activeProviderId = providerId)
+        }
+    }
+
     fun onToggleFreeOnly() {
         _state.value = _state.value.copy(freeOnly = !_state.value.freeOnly)
     }

@@ -4,12 +4,8 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Chat
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -17,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
+import de.overlai.core.ui.components.AppLogo
 import de.overlai.core.ui.theme.OverlAiTheme
 
 // CHANGE-MARKER v0.5.2: Overlay-Bubble (M3, siehe CHANGELOG.md)
@@ -68,11 +65,13 @@ internal fun OverlayBubble(
                     },
         ) {
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Chat,
-                    contentDescription = "OverlAI",
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.padding(14.dp).fillMaxSize(),
+                // D4-Marken-Logo statt generischem Chat-Icon (P2.5). Auf der primary-Bubble:
+                // Ring/Funke in onPrimary, Punkt hell für Kontrast.
+                AppLogo(
+                    size = 30.dp,
+                    ring = MaterialTheme.colorScheme.onPrimary,
+                    dot = MaterialTheme.colorScheme.primaryContainer,
+                    halo = MaterialTheme.colorScheme.onPrimary,
                 )
             }
         }

@@ -1,6 +1,5 @@
 package de.overlai.feature.settings
 
-import android.os.Build
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,7 +15,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -28,8 +26,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.overlai.common.ThemeMode
 
-// CHANGE-MARKER v0.2.1: Darstellung/Theme (siehe CHANGELOG.md)
-// Theme-Einstellungen: System/Hell/Dunkel + Material-You-Schalter (ab Android 12).
+// CHANGE-MARKER: Darstellung/Theme (P2.5, siehe CHANGELOG.md)
+// Theme-Einstellungen: nur System/Hell/Dunkel. Material You entfernt (feste Marken-Palette).
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppearanceScreen(
@@ -38,7 +36,6 @@ fun AppearanceScreen(
     modifier: Modifier = Modifier,
 ) {
     val prefs by viewModel.prefs.collectAsStateWithLifecycle()
-    val dynamicColorSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -62,34 +59,15 @@ fun AppearanceScreen(
             ModeOption("Hell", prefs.mode == ThemeMode.LIGHT) { viewModel.setMode(ThemeMode.LIGHT) }
             ModeOption("Dunkel", prefs.mode == ThemeMode.DARK) { viewModel.setMode(ThemeMode.DARK) }
 
+            // P2.5: OverlAI nutzt eine feste Marken-Palette (warm) — bewusst KEIN Material You,
+            // damit Fullscreen und Overlay konsistent aussehen. Der frühere (folgenlose) Schalter
+            // wurde entfernt.
             Text(
-                "Farben",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(top = 16.dp),
+                "OverlAI nutzt eine feste Marken-Farbpalette. Nur der Hell-/Dunkel-Modus ist wählbar.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 12.dp),
             )
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Material You (dynamische Farben)")
-                    Text(
-                        if (dynamicColorSupported) {
-                            "Übernimmt die Systemfarben deines Geräts."
-                        } else {
-                            "Ab Android 12 verfügbar."
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Switch(
-                    checked = prefs.useDynamicColor && dynamicColorSupported,
-                    onCheckedChange = { viewModel.setDynamicColor(it) },
-                    enabled = dynamicColorSupported,
-                )
-            }
         }
     }
 }
