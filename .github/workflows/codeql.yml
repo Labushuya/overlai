@@ -1,5 +1,5 @@
 # CHANGE-MARKER v0.1.0: Initiales Projektgrundgerüst (siehe CHANGELOG.md)
-# OverlAI — CodeQL SAST für Kotlin/Java. PR + wöchentlicher Scan.
+# OverlAI — CodeQL SAST für Kotlin/Java. Scan bei PR und Push auf main.
 name: CodeQL
 
 on:
@@ -7,8 +7,6 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
-  schedule:
-    - cron: "27 4 * * 1"   # montags 04:27 UTC (Off-Peak-Minute)
 
 permissions:
   contents: read
@@ -29,7 +27,7 @@ jobs:
           java-version: "21"
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3.2.2
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
 
       - name: CodeQL initialisieren
         uses: github/codeql-action/init@main
