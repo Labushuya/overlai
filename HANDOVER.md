@@ -1,89 +1,158 @@
 # OverlAI — Session-Handover
 
-**Stand:** 2026-08-05 · **Letzter Release:** v0.6.1 (live). **Phase 1 abgeschlossen; Phase 2 (Produktausbau) läuft — Reihenfolge in ROADMAP.md.** Auf `main`, aber **noch nicht released** (Verhalten für Release-Nutzer = v0.6.1):
-- **P2.1a gemergt** (PR #29): Chat-Kern vereinheitlicht (ConversationSession) — Fundament für Multi-Chat/Entry-Points; am Gerät verhaltensgleich.
-- **P2.2 gemergt** (PR #33): Bubble-**Snapping** + **Clamping** + **Papierkorb** (mittig-unten, Hover) + **Rotation** — Neubau, am Gerät verifiziert. Ersetzt den verworfenen PR #28.
-- **Debug-Anpassungen** (PR #33): Updater im Debug-Build deaktiviert (`DebugUpdatesNotice`); Marken-**Icon D4** umgesetzt (aus P2.5 vorgezogen — Rest: Bubble-Icon/Splash/Theme bleibt P2.5), Debug-Variante mit Gold-Band + Label „OverlAI Debug".
-- **Arbeitsweise (Nutzer-Feedback, load-bearing):** Fertig + verifiziert = **zeitnah nach `main` mergen**, keine Feature-Branches stapeln. Branches nach Merge/Verwerfen löschen (lokal + remote). Offene PRs sind aktuell **nur Dependabot/CI-Bumps** (→ P2.7).
-- **Nächster Schritt: P2.1b** (Room-Persistenz + echtes Multi-Chat), dann P2.4/P2.5/P2.6/P2.7.
+**Stand:** 2026-10-14 · **Letzter Release:** v0.14.0 (2026-08-16) · **Repo:** `Labushuya/overlai` (public) · **Lokal:** `C:\Code\claude\apps\overlai`
 
-Repo: `Labushuya/overlai` (public) · Lokal: `C:\Code\claude\apps\overlai`
-
-Dieses Dokument ist der Übergabepunkt zwischen Sessions. Es beschreibt den **aktuellen Stand**, die **gelösten und offenen Probleme** und die **Roadmap**. Nach einer Kontextbereinigung hier ansetzen.
+Single Source of Truth für Session-Übergaben. Neue Session liest diese Datei als Erstes.
 
 ---
 
 ## 1. Was OverlAI ist
 
-Android-Overlay-KI-Assistent (Kotlin + Jetpack Compose, Material 3, multi-modul Gradle). BYOK (Bring-Your-Own-Key), keine Backend-Infrastruktur — Requests gehen direkt Gerät→Provider. **Sideload-only** (GitHub Releases, kein Play Store), eigener In-App-Updater. Provider: OpenAI, Anthropic, OpenRouter, DeepSeek, Grok, Kimi (Moonshot), Gemini.
+Android-Overlay-KI-Assistent (Kotlin + Jetpack Compose + Material 3, multi-modul Gradle, Kotlin DSL). **BYOK** (Bring-Your-Own-Key), kein Backend — Requests direkt Gerät→Provider. **Sideload-only** (GitHub Releases, kein Play Store), eigener In-App-Updater. Provider: OpenAI, Anthropic, OpenRouter, DeepSeek, Grok (xAI), Groq, Kimi (Moonshot), Gemini.
 
-Architektur: `feature-*` hängen nur an `core-*`, nie aneinander; Wiring/DI nur in `:app`. ViewModels via `simpleFactory` (kein Hilt in VMs). `core-llm` ist pures JVM (lokal testbar); Android-Module (`:app`, `feature-*`, `core-ui`, `core-data`, `core-security`) bauen **nur in CI** (kein lokales Android-SDK auf dieser Maschine → lokal geht nur ktlint/detekt + `:core-llm:test`).
+**Kernidee:** KI schwebend *über* der aktuell geöffneten App via `SYSTEM_ALERT_WINDOW`-Bubble. Fullscreen, Notification und Share sind gleichwertige Zugänge zum selben Chat-Kern.
 
----
-
-## 2. Aktueller Stand (nach dieser Session)
-
-**Alle in v0.5.0 enthalten, CI-grün, released:**
-
-### Gelöste Bugs (Provider/Chat)
-- **ROOT CAUSE aller „leere Antwort/204"-Fehler:** `stream:true` fiel wegen `encodeDefaults=false` aus dem Request-Body → Provider antwortete non-streaming → SSE-Reader sah nie `data:` → 204. Fix: `@EncodeDefault(ALWAYS)` auf `OpenAiChatRequest.stream` (`core-llm/.../transport/OpenAiDtos.kt`). Traf ALLE OpenAI-kompatiblen Provider seit v0.1.0. **Das war die eigentliche Ursache** hinter den vorher vermuteten provider-spezifischen Symptomen.
-- In-Stream-Fehler wurden verschluckt (leere Bubble) → jetzt als typisierter `LlmError` gemeldet (OpenAiCompat **und** Anthropic-Adapter).
-- OpenRouter `:free` „204 bei allen": `error.code` kam als Zahl, DTO erwartete String → Chunk-Deser kippte → Fehler verschluckt. Fix: `OpenAiError.code` = `JsonElement`.
-- `:free`-Katalog: markierte tote Slugs als gratis (nur Suffix geprüft) → jetzt nach echtem Preis (`pricing==0`, fail-closed).
-- „Model not found" Kimi/Grok/Gemini: hartkodierte veraltete IDs → jetzt **Live-Katalog** (`/v1/models`, Gemini-Shim `/models`, `models/`-Präfix-Strip, Allow-Präfixe je Provider).
-- Reasoning-Modelle (Kimi k2-thinking, DeepSeek-R1) streamen Text in `reasoning_content`/`reasoning` statt `content` → jetzt gelesen; Leer-Meldung neutral (Provider+Modell, kein „kostenlos"-Bias).
-- **Anthropic hatte denselben latenten `stream`-Bug (nach dieser Session gefixt, noch nicht released):** `AnthropicRequest.stream = true` war ein Serialisierungs-Default ohne `@EncodeDefault(ALWAYS)` → fiel wegen `encodeDefaults=false` aus dem Body → Anthropic hätte non-streaming geantwortet → falsche „Leere Antwort". Fix analog OpenAiCompat + Regressionstest (`AnthropicProviderTest` prüft jetzt `"stream":true` im Body, wie der OpenAiCompat-Test). Der Unit-Test war grün, weil er nur die *Response* mockte, nie den *Request*-Body auf `stream` prüfte. Lokal verifiziert (`:core:core-llm:test`).
-
-### Gelöste Bugs (Updater/Release)
-- In-App-Updater „Installieren" reagierte nicht: `PackageInstaller.commit()` zeigt den Dialog nicht direkt, sondern per `STATUS_PENDING_USER_ACTION`-Broadcast → es fehlte der Receiver. Fix: dynamischer `BroadcastReceiver` (`RECEIVER_NOT_EXPORTED`), startet `EXTRA_INTENT` (`FLAG_ACTIVITY_NEW_TASK`), meldet Erfolg/Fehler via StateFlow. **`EXTRA_INTENT` liegt auf `Intent`, nicht `PackageInstaller`** (CI-Compile-Falle).
-- Release-Flow: Release-Please-Manifest hing auf 0.1.0 (manuell getaggt bis 0.4.0) → auf echten Stand gesetzt. Zwei load-bearing Repo-Settings aktiviert: `default_workflow_permissions=write` + `can_approve_pull_request_reviews=true`.
-- **Release-Automatik:** `release.yml` triggert jetzt via `workflow_run` nach „Release Please" (nicht mehr `push: tags` — ein GITHUB_TOKEN-Tag triggert keinen Folge-Workflow). **Kein manueller Tag-Repush mehr nötig** (funktioniert seit 0.4.4).
-
-### UI-Redesign (v0.5.0, das feat das den Minor-Bump auslöste)
-- **Provider-Hub:** ein Akkordeon-Screen (`feature-onboarding/ProviderHubScreen.kt` + `ProviderHubViewModel.kt`) ersetzt die alte dreigeteilte UI (Radio-Liste + Key-Block + separater Modell-Screen). Pro Provider aufklappbare Karte (genau eine offen), darin: Key-Verwaltung (maskiert `••••••••1234` + Ändern/Löschen bzw. Eingabe+Speichern), Capability-Badges, live Modell-Katalog (lazy beim Aufklappen, Kontextfenster + Free sichtbar). Modell-Tap = Modell + Provider aktiv.
-- `KeyStatusBadge` in `core-ui/components/` (einheitlicher Status statt 4 Varianten).
-- Entfernt: `OnboardingScreen`, `OnboardingViewModel`, `ModelCatalogScreen`, `ModelCatalogViewModel`, `SettingsRoutes.MODELS`.
+**Architektur:** `feature-*` → nur `core-*`, nie feature→feature. Wiring/DI nur in `:app`. ViewModels via `simpleFactory` (kein Hilt in VMs). `core-llm` = pures JVM (lokal testbar ohne SDK). Android-Module bauen lokal via `./gradlew :app:assembleDebug` (SDK unter `C:\Users\I538150\Android\Sdk`, `local.properties` nötig, gitignored).
 
 ---
 
-## 3. Offene Probleme / Ungeklärt
+## 2. Release-Stand & abgeschlossene Phasen
 
-- ~~Nutzer meldet „keine APK bereitgestellt" bei v0.5.0~~ **ERLEDIGT (2026-08-01):** APK war vorhanden und wurde am Gerät getestet — funktional. Keine Diskrepanz, kein weiterer Handlungsbedarf.
-- **Kein Unit-Test für `ProviderHubViewModel`:** `SettingsStore` ist konkrete DataStore/Android-Klasse (kein Interface) → im JVM-Test nicht fakebar. Ein echter VM-Test erfordert ein `SettingsStore`-Interface-Refactoring (eigener Scope). Aktuell nur CI-Compile + Gerätetest. Katalog-Kernlogik ist durch `ModelCatalogTest` (core-llm) abgedeckt.
-- **13 offene Dependabot-PRs** (#1-14, u.a. AGP 8.7→9.3 #9, okhttp 4→5 #12/#14, Kotlin-Gruppe #7, ktlint 12→14 #13) — teils Major-Bumps mit Breaking-Changes, nicht abgearbeitet.
-- **Verifikations-Lücke Fallback-Modell-IDs:** `kimi-k2.6`/`grok-4.5`/`gemini-2.5-flash` sind Doku-abgeleitete Fallbacks, nicht gegen echte Konten verifiziert. Irrelevant solange der Live-Katalog lädt (dann kommen echte IDs), aber der Fallback greift bei Netz-/Auth-Fehlern.
+### Phase 1 — abgeschlossen (v0.6.1)
+M0 Pipeline/Signing, M1 core-llm/BYOK/Chat, M2 ProcessText/Share/OCR, M3 Overlay-Bubble+Panel+Touch-Fix, M5 Anthropic+Config-Provider+Live-Katalog, Provider-Bugfix-Serie (root cause: `stream:true` fehlte wegen `encodeDefaults=false` → `@EncodeDefault(ALWAYS)` Fix).
+
+### Phase 2 — Produktausbau (läuft)
+
+| Etappe | Version | Inhalt |
+|--------|---------|--------|
+| P2.1a | v0.6.x | Chat-Kern vereinheitlicht: `ConversationSession` über `ConversationEngine`, `ChatUiMessage`-Modell, dünne Adapter |
+| P2.2 | v0.6.x | Bubble-Snapping+Clamping+Papierkorb+Rotation (ValueAnimator, kein neue Dep) |
+| P2.1b+c | v0.7.x | Room-Persistenz Multi-Chat, Marken-Politur, D4-Icon |
+| P2.4 | **v0.11.0** | Vier Entry-Points: Overlay+Fullscreen+Notification (QuickReply)+Share, Deep-Link, CodeQL False-Positive per API schließen |
+| P2.5-E1 | **v0.12.0** | Warme Palette (Creme/Taupe/Greige), Shapes.kt/Spacing.kt, AppLogo D4, 3 Bottom-Tabs, Groq als neuer Provider |
+| P2.5-E2 | **v0.13.0** | Modellwechsel im offenen Chat (Header-Chip → Sheet), Kostenhinweis |
+| P2.5-E3 | **v0.14.0** | Guthaben-/Kontingente-Ansicht im ProviderHub (OpenRouter `/credits` + Fallback-Hinweis für andere) |
+| **P2.5-E4** | **🔴 OFFEN** | Overlay Panel-Größe + IME-Fix (Tastatur überdeckt Eingabefeld) |
+
+### Nächster Schritt: P2.5-E4 (Overlay IME-Fix)
+
+**Branch:** `feat/overlay-ime` (lokal, rebased auf main, **NICHT committed, NICHT gepusht**)
+
+**Was bereits implementiert ist (70 Zeilen Diff in `OverlayWindowController.kt`, unverified):**
+- `panelRestY`/`panelRestHeight`/`imeVisibleHeight` als State-Felder
+- `SOFT_INPUT_ADJUST_RESIZE` auf dem Panel-WindowManager-Fenster
+- `ViewCompat.setOnApplyWindowInsetsListener` → `onImeHeightChanged(ime: Int)`
+- Panel nach oben schieben + verkleinern wenn Tastatur auf; Restore auf Ruhe-Geometrie wenn zu
+- `screenWidth`/`screenHeight` als Properties statt Funktionen (TooManyFunctions-Grenze)
+
+**Status:** Implementierung liegt lokal uncommitted. Noch kein Commit, kein CI, kein Gerätetest. Neue Session: committen, CI prüfen, am Gerät testen, PR erstellen.
+
+**Plan-Datei:** `~/.claude/plans/refactored-brewing-cake.md` → Abschnitt „Etappe 4"
 
 ---
 
-## 4. Roadmap → siehe `ROADMAP.md` (Single Source of Truth)
+## 3. Wichtige Architektur-Details (nicht neu herleiten)
 
-Die vollständige, konsolidierte Roadmap steht in **`ROADMAP.md`** (Phase 1 abgeschlossen/released, Phase 2 Produktausbau, Phase 3 später). Kurzfassung des relevanten Stands:
+### Chat-Kern
+- `ConversationEngine` (zustandslos, `core-conversation`) ← `ConversationSession` (zustandsbehaftet, pro Chat)
+- `SessionRepository` (Room, `core-data`): `ChatSessionEntity` + `ChatMessageEntity`, `active_session_id` in SettingsStore
+- Alle vier Entry-Points (Overlay, Fullscreen, Notification, Share) nutzen denselben Session-Store
+- `HandoverGenerator` (core-conversation): one-shot `complete()`, generiert Ziel/Erledigt/Offen/Probleme/Nächster-Schritt, `primeAndRespond()` für Autostart neuer Fortsetzungssessions
 
-**Phase 1 erledigt & released (v0.6.1):** M0 (Pipeline/CI/Signing), M1 (core-llm/BYOK/Chat), M2 (ProcessText/Share/OCR), M3.1+M3.2 (Overlay-Bubble + Panel-Chat), M3-Touch-Fix, M5 (Anthropic + Config-Provider + Live-Katalog), Provider-Bugfix-Serie.
+### Overlay
+- `OverlayService` (FGS `specialUse`) → `OverlayWindowController` → `OverlayBubble` + `OverlayPanel`
+- Touch in Compose via `Modifier.pointerInput` (nie `View.OnTouchListener` — `ComposeView` konsumiert `ACTION_DOWN` selbst)
+- **Honor/EMUI-Falle:** `SYSTEM_ALERT_WINDOW` allein reicht nicht — separates „Schwebefenster"-Recht in App-Info nötig
+- `OverlayLifecycleOwner` setzt manuell ViewTree-Owner (Lifecycle/ViewModelStore/SavedState) — ohne das crasht `ComposeView` im WindowManager
 
-**M3-Touch-Fix (v0.6.1, am Gerät verifiziert):** Bubble war sichtbar aber tot. Zwei Ursachen (per adb gefunden): (1) Honor/EMUI verlangt zusätzlich ein verstecktes „Schwebefenster"-Recht (App-Info), sonst Overlay unsichtbar trotz `SYSTEM_ALERT_WINDOW`. (2) `ComposeView` konsumiert `ACTION_DOWN` selbst → `View.OnTouchListener` am Root feuert nie → Touch in Compose via `Modifier.pointerInput`.
+### Provider/LLM
+- `OpenAiCompatTransport` treibt alle non-Anthropic Provider (OpenAI, DeepSeek, Groq, Grok, Kimi, Gemini-Shim, OpenRouter)
+- `AnthropicProvider` dedizierter Adapter (systemPlacement=TOP_LEVEL, ApiKeyHeader, eigene SSE-Events)
+- **Kritischer Fix (ewig merken):** `@EncodeDefault(ALWAYS)` auf `stream`-Feld in BEIDEN DTOs (`OpenAiChatRequest` + `AnthropicRequest`) — `encodeDefaults=false` würde den Default-Wert `true` sonst weglassen → Provider antwortet non-streaming → alle Chats stumm
+- Live-Modell-Katalog: `/v1/models` für OpenAI/Anthropic/OpenRouter/DeepSeek/Kimi/Grok, `/models` für Gemini-Shim, StaticModels-Fallback für Groq
+- `LlmProvider.fetchCredits()` (optional, default null): OpenRouter implementiert (`/api/v1/credits`), alle anderen → Fallback-Hinweis
 
-**⚠️ M3.3-Robustheit (Branch `feat/overlay-robustness`, PR #28) — am Gerät UNBRAUCHBAR:** Snapping greift nicht, IME schiebt das Panel kaputt, kein Papierkorb-Schließen. **NICHT mergen.** Wird in **P2.2** von Grund auf überarbeitet (Android-Standard-Snapping + Papierkorb mittig-unten + feste Panel-Größe). Code auf dem Branch dient nur als Referenz/Ausgangspunkt.
-
-**Phase 2 (aktuell) — Reihenfolge in ROADMAP.md:** P2.0 Doku (dieser Schritt) · P2.1 Chat-Kern vereinheitlichen + Multi-Chat-Sessions (Fundament, verhindert Doppel-Refactoring) · P2.2 Bubble-Snapping/Papierkorb (überarbeitet) · P2.3 Logo/Marke (Konzepte vorschlagen, Name OverlAI bleibt) · P2.4 vier Entry-Points (Overlay=Kern, +Fullscreen/Notification/Share, alle → selber Chat-Kern) · P2.5 UI-Redesign (Multi-Chat, Modellanzeige, Kontingente) · P2.6 Updater wie Wickelfinder (GitHub-Releases-API + SemVer, nativen PackageInstaller behalten) · P2.7 Politur + Dependabot + Grok-Test.
-
-**Phase 3 (später):** M4 (AccessibilityService/MediaProjection Screen-Read — KI „sieht" die App), M6 (Web-Search-Router + Transcription).
+### Design-System (core-ui)
+- `OverlAiTheme` immer mit Marken-Palette (Dynamic Color komplett entfernt)
+- Warme Palette: `EDD9CA` Creme (background), `F6ECE3` (surface), `B9A8A6` Taupe (primary), `D4C9C8` Greige (surfaceVariant), `A5735C` Terracotta (secondary), `3A2F2A` WarmInk (onBackground)
+- `OverlaiShapes` + `OverlaiSpacing` + `AppLogo` (D4 Canvas-Composable) in core-ui
+- 3 Bottom-Tabs: Chats / Provider / Einstellungen
 
 ---
 
-## 5. Betriebswissen (nicht neu herleiten)
+## 4. Roadmap nach P2.5-E4
 
-- **Release cutten:** Release-Please-PR („chore(main): release X.Y.Z") **mergen** (`gh pr merge <n> --squash`). Dann läuft alles automatisch: Tag → `release.yml` via `workflow_run` → signierte APK + Release + `latest.json` auf gh-pages. **Kein Tag-Repush.** Nutzer merged selbst (outward-facing). **Kein `--delete-branch`** anhängen (Nutzer-Feedback).
-- **Verifikation Release:** `gh release view vX.Y.Z --json assets`; `curl -s https://raw.githubusercontent.com/Labushuya/overlai/gh-pages/latest.json`.
-- **Lokal baubar:** nur `:core-llm:test`, `ktlintCheck`, `detekt`, `ktlintFormat`. Android-Module → CI. `.kotlin/` ist gitignored.
-- **Lint lokal IMMER modulübergreifend prüfen:** `./gradlew ktlintCheck detekt --continue` (nicht nur die berührten Module). Import-Ordering-Fehler in `:app` (z.B. neuer `de.overlai.feature.*`-Import an falscher alphabetischer Stelle) fallen sonst erst in CI auf. `ktlintFormat` sortiert sie automatisch. (Einmal in M3.1 gebissen.)
-- **CI beobachten:** `gh run list --workflow=CI --branch=main`, `gh run watch <id> --exit-status`. Node-20-Deprecation-Annotation ist harmlos.
-- **Signing-Key ist load-bearing:** base64-Secret `ANDROID_KEYSTORE_BASE64` (+3 weitere). Muss stabil bleiben, sonst `INSTALL_FAILED_UPDATE_INCOMPATIBLE`.
-- **Bump-Regel:** `fix:` → Patch, `feat:` → Minor (Conventional Commits).
-- **Verhalten ggü. Nutzer:** deutschsprachig, direkt. Bei Provider-Bugs: **echten curl-Datenpunkt** holen statt raten (mehrfach der Durchbruch gewesen). Keine Behauptungen ohne Beleg; keine Zuschreibungen an den Nutzer, die man nicht belegen kann. **Release-PR erst nach ausdrücklicher Freigabe mergen** (outward-facing) — nicht aus einem „endlich"/„ok" ableiten.
-- **Lokaler Android-Build + Gerätetest GEHT doch** (entgegen älterer Handover-Annahme „nur CI"): Das SDK liegt unter `C:\Users\I538150\Android\Sdk`, es fehlte nur `local.properties` (`sdk.dir=...`, gitignored). Dann `./gradlew :app:assembleDebug` lokal + `adb install -r app/build/outputs/apk/debug/app-debug.apk`. adb ist nicht im PATH: `export PATH="$PATH:$USERPROFILE/Android/Sdk/platform-tools"`. Debug-Variante = Package `de.overlai.app.debug` (parallel zur Release-App, überschreibt sie nicht). **Gerätenahe Bugs so verifizieren statt blind zu releasen.**
-- **Gerätediagnose (Honor VER-N49):** `adb logcat`, `adb shell dumpsys window windows`, Screenshot: `MSYS_NO_PATHCONV=1 adb shell "screencap -d <id> -p /sdcard/x.png"` + `adb pull` (Gerät hat 2 Displays; ID via `dumpsys SurfaceFlinger --display-id`, das aktive nutzen — sonst schwarzes Bild). Auf dieser ROM meldet der WindowManager-Dump für FAST JEDES Fenster `frame=0x0`/`alpha=0.0` im `mInputWindowHandle` → **kein verlässlicher Render-Indikator**, Screenshot ist die Wahrheit.
-- **Honor/EMUI-Overlay-Falle:** `SYSTEM_ALERT_WINDOW` allein reicht nicht — es gibt ein separates verstecktes „Schwebefenster"/„Pop-up"-Recht in der App-Info. Ohne das bleibt jedes Overlay unsichtbar.
-- **Compose-Touch im Overlay:** Ein `ComposeView` konsumiert `ACTION_DOWN` selbst → `View.OnTouchListener` am Root feuert NIE. Touch immer in Compose (`Modifier.pointerInput`) lösen, nicht per View-Listener. Siehe [[overlai-compose-in-overlay-lifecycle]].
+Vollständige Roadmap in `ROADMAP.md`. Kurzfassung:
 
-Verwandte Memories: `overlai-stream-default-dropped`, `overlai-packageinstaller-pending-user-action`, `overlai-release-please-manifest`, `overlai-compose-in-overlay-lifecycle`, `overlai-local-build-and-device-test`.
+- **P2.6** — Updater/Installer wie Wickelfinder: GitHub-Releases-API statt `latest.json`, SemVer-Comparator, nativer `PackageInstaller.Session`-Flow behalten
+- **P2.7** — Politur + Dependabot (teils Major-Bumps: AGP 9, okhttp 5, Kotlin-Gruppe) + Grok-Gerätetest
+- **Phase 3** — M4 AccessibilityService/MediaProjection (KI „sieht" App), M6 Web-Search-Router + Transcription
+
+---
+
+## 5. Betriebswissen
+
+### Build & CI
+```bash
+# Lokal (kein SDK nötig):
+./gradlew :core:core-llm:test ktlintCheck detekt --continue
+
+# Debug-APK lokal:
+./gradlew :app:assembleDebug
+export PATH="$PATH:$USERPROFILE/Android/Sdk/platform-tools"
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+
+# CI beobachten:
+gh run list --workflow=CI --branch=main
+gh run watch <id> --exit-status
+```
+- Node-20-Deprecation-Annotation in CI = harmlos
+- **Lint-Falle:** IMMER `--continue` nutzen und alle Module prüfen, nicht nur betroffene (`ktlintFormat` sortiert Import-Ordering automatisch)
+
+### Release-Flow
+```bash
+# Release-Please-PR mergen (KEIN --delete-branch):
+gh pr merge <n> --squash
+
+# Verifikation nach Release:
+gh release view vX.Y.Z --json assets
+curl -s https://raw.githubusercontent.com/Labushuya/overlai/gh-pages/latest.json
+```
+- `release.yml` triggert via `workflow_run` nach „Release Please" → signierte APK + `latest.json` automatisch
+- Signing-Key: `ANDROID_KEYSTORE_BASE64` + 3 weitere Secrets — stabil halten (sonst `INSTALL_FAILED_UPDATE_INCOMPATIBLE`)
+- `fix:` → Patch-Bump, `feat:` → Minor-Bump (Conventional Commits)
+
+### Gerätediagnose (Honor VER-N49)
+```bash
+adb logcat
+adb shell dumpsys window windows
+# Screenshot (Gerät hat 2 Displays — aktives via dumpsys SurfaceFlinger --display-id):
+MSYS_NO_PATHCONV=1 adb shell "screencap -d <id> -p /sdcard/x.png" && adb pull /sdcard/x.png
+```
+- `frame=0x0`/`alpha=0.0` im WindowManager-Dump = KEIN verlässlicher Render-Indikator → Screenshot ist Wahrheit
+- CodeQL False-Positive (FLAG_MUTABLE für RemoteInput): `gh api PATCH repos/Labushuya/overlai/code-scanning/alerts/<n> -f state=dismissed -f dismissed_reason="false positive"`
+
+### Verhaltensregeln (Nutzer)
+- Deutsch, direkt; Release-PR erst nach ausdrücklicher Freigabe mergen
+- Kein `--delete-branch` anhängen (Nutzer-Feedback)
+- Bei Provider-Bugs: echten `curl`-Datenpunkt holen statt raten
+- Fertig + verifiziert = zeitnah nach main mergen, keine Branches stapeln
+
+---
+
+## 6. Wo eine neue Session ansetzt
+
+```bash
+cd C:/Code/claude/apps/overlai
+git checkout feat/overlay-ime
+git status  # zeigt 1 modifizierte Datei: OverlayWindowController.kt
+```
+
+**Aufgabe P2.5-E4:**
+1. `OverlayWindowController.kt`-Änderungen reviewen (70 Zeilen IME-Fix, `git diff main`)
+2. Committen + PR erstellen
+3. CI grün machen
+4. Gerätetest: Overlay öffnen, Eingabefeld antippen → Tastatur darf das Feld nicht verdecken
+5. Nach Freigabe mergen → Release-Please-PR → Release v0.15.0
+
+**Danach: P2.6** (Updater-Umbau auf GitHub-Releases-API, Plan in `ROADMAP.md`).
