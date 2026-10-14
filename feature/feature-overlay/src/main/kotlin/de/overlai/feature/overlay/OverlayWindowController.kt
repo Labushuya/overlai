@@ -12,6 +12,8 @@ import android.view.animation.DecelerateInterpolator
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 
 // CHANGE-MARKER v0.5.2: Overlay-Bubble (M3, siehe CHANGELOG.md)
 // Kapselt die gesamte WindowManager-Logik der Overlay-Bubble. Läuft aus dem
@@ -43,6 +45,13 @@ internal class OverlayWindowController(
 
     // P2.1c/D: aktuelle Panel-Fensterparameter (für Header-Drag → Reposition).
     private var panelParams: WindowManager.LayoutParams? = null
+
+    // P2.5-E4: Ruhe-Geometrie des Panels (ohne Tastatur), um nach IME-Schließen wieder
+    // herzustellen. Beim Öffnen der Tastatur wird das Fenster nach oben verschoben und ggf.
+    // verkleinert, sodass sein unterer Rand über der Tastatur bleibt (Eingabefeld sichtbar).
+    private var panelRestY: Int = 0
+    private var panelRestHeight: Int = 0
+    private var imeVisibleHeight: Int = 0
 
     // Papierkorb-Zone — nur während eines Drags am Fenster. Highlight via State (Hit-Test).
     private var trashView: ComposeView? = null
@@ -154,9 +163,17 @@ internal class OverlayWindowController(
                 // On-screen halten: neben/unter der Bubble, aber nie über den Rand hinaus.
                 x = if (::bubbleParams.isInitialized) bubbleParams.x else 0
                 y = if (::bubbleParams.isInitialized) bubbleParams.y + dpToPx(64f) else 360
+                // P2.5-E4 IME: die Tastatur soll das Fenster verkleinern statt es zu verdecken.
+                // Zusammen mit imePadding() im Panel-Compose (WindowInsets.ime) wandert das
+                // Eingabefeld über die Tastatur. ADJUST_RESIZE greift für ein fokussierbares
+                // TYPE_APPLICATION_OVERLAY-Fenster; die IME-Insets erreichen dann den ComposeView.
+                softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
             }
         clampPanel(params)
         panelParams = params
+        panelRestY = params.y
+        panelRestHeight = params.height
+        imeVisibleHeight = 0
 
         val owner = OverlayLifecycleOwner()
         val view =
@@ -183,6 +200,14 @@ internal class OverlayWindowController(
             } else {
                 false
             }
+        }
+        // P2.5-E4: IME-Höhe abgreifen und das Panel-Fenster so anpassen, dass sein unterer Rand
+        // über der Tastatur bleibt. Ein WindowManager-Overlay ist kein Activity-Content → wir
+        // reagieren selbst auf die IME-Insets statt auf automatisches ADJUST_RESIZE zu bauen.
+        ViewCompat.setOnApplyWindowInsetsListener(view) { _, insets ->
+            val ime = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
+            onImeHeightChanged(ime)
+            insets
         }
 
         panelOwner = owner
@@ -213,6 +238,34 @@ internal class OverlayWindowController(
         params.x += dx
         params.y += dy
         clampPanel(params)
+        // Ruhe-Geometrie mitführen, damit ein späterer IME-Auf/Zu vom neuen Ort ausgeht.
+        panelRestY = params.y
+        panelRestHeight = params.height
+        if (view.isAttachedToWindow) windowManager.updateViewLayout(view, params)
+    }
+
+    // P2.5-E4: Auf geänderte Tastatur-Höhe reagieren. Sichtbare Tastatur (ime>0) → Fenster so
+    // nach oben schieben (und wenn nötig verkleinern), dass sein unterer Rand über der Tastatur
+    // liegt; das Eingabefeld sitzt unten im Panel und bleibt so sichtbar. Tastatur zu (ime=0) →
+    // Ruhe-Geometrie wiederherstellen. Idempotent gegen wiederholte Insets desselben Zustands.
+    private fun onImeHeightChanged(ime: Int) {
+        if (ime == imeVisibleHeight) return
+        imeVisibleHeight = ime
+        val params = panelParams ?: return
+        val view = panelView ?: return
+        if (ime <= 0) {
+            params.y = panelRestY
+            params.height = panelRestHeight
+        } else {
+            val minTop = statusBarHeight()
+            val available = (screenHeight - ime - minTop).coerceAtLeast(dpToPx(MIN_PANEL_HEIGHT_DP))
+            // Höhe ggf. auf den über der Tastatur verfügbaren Platz begrenzen.
+            val height = panelRestHeight.coerceAtMost(available)
+            // Unterkante muss über der Tastatur liegen: y + height <= screenHeight - ime.
+            val maxY = (screenHeight - ime - height).coerceAtLeast(minTop)
+            params.height = height
+            params.y = panelRestY.coerceAtMost(maxY)
+        }
         if (view.isAttachedToWindow) windowManager.updateViewLayout(view, params)
     }
 
@@ -294,34 +347,38 @@ internal class OverlayWindowController(
         // Zonen-Rechteck: mittig-unten, großzügiger Radius um das Zonen-Zentrum.
         val zoneW = dpToPx(TRASH_HIT_DP)
         val zoneH = dpToPx(TRASH_HIT_DP)
-        val zoneCenterX = screenWidth() / 2
-        val zoneCenterY = screenHeight() - dpToPx(48f) - dpToPx(TRASH_CENTER_FROM_BOTTOM_DP)
+        val zoneCenterX = screenWidth / 2
+        val zoneCenterY = screenHeight - dpToPx(48f) - dpToPx(TRASH_CENTER_FROM_BOTTOM_DP)
         return kotlin.math.abs(centerX - zoneCenterX) <= zoneW / 2 &&
             kotlin.math.abs(centerY - zoneCenterY) <= zoneH / 2
     }
 
     // --- Positionierung / Snapping ---
 
-    private fun screenWidth(): Int = context.resources.displayMetrics.widthPixels
+    // Als Properties (nicht Funktionen) gehalten: zählen nicht zur TooManyFunctions-Grenze
+    // und lesen die aktuelle Display-Größe bei jedem Zugriff (Rotation).
+    private val screenWidth: Int
+        get() = context.resources.displayMetrics.widthPixels
 
-    private fun screenHeight(): Int = context.resources.displayMetrics.heightPixels
+    private val screenHeight: Int
+        get() = context.resources.displayMetrics.heightPixels
 
     private fun statusBarHeight(): Int {
         val id = context.resources.getIdentifier("status_bar_height", "dimen", "android")
         return if (id > 0) context.resources.getDimensionPixelSize(id) else dpToPx(24f)
     }
 
-    private fun clampX(x: Int): Int = x.coerceIn(0, (screenWidth() - dpToPx(BUBBLE_SIZE_DP)).coerceAtLeast(0))
+    private fun clampX(x: Int): Int = x.coerceIn(0, (screenWidth - dpToPx(BUBBLE_SIZE_DP)).coerceAtLeast(0))
 
     private fun clampY(y: Int): Int =
-        y.coerceIn(statusBarHeight(), (screenHeight() - dpToPx(BUBBLE_SIZE_DP)).coerceAtLeast(statusBarHeight()))
+        y.coerceIn(statusBarHeight(), (screenHeight - dpToPx(BUBBLE_SIZE_DP)).coerceAtLeast(statusBarHeight()))
 
     // Panel on-screen halten (horizontal + vertikal), damit es bei randnaher Bubble nicht
     // teils außerhalb landet. Clampt direkt auf dem übergebenen params-Objekt.
     private fun clampPanel(params: WindowManager.LayoutParams) {
-        params.x = params.x.coerceIn(0, (screenWidth() - params.width).coerceAtLeast(0))
+        params.x = params.x.coerceIn(0, (screenWidth - params.width).coerceAtLeast(0))
         val minY = statusBarHeight()
-        params.y = params.y.coerceIn(minY, (screenHeight() - params.height).coerceAtLeast(minY))
+        params.y = params.y.coerceIn(minY, (screenHeight - params.height).coerceAtLeast(minY))
     }
 
     // Beim Loslassen an den näheren horizontalen Rand animieren (ValueAnimator, Main-Thread).
@@ -329,8 +386,8 @@ internal class OverlayWindowController(
         if (!::bubbleParams.isInitialized) return
         val view = bubbleView ?: return
         val bubblePx = dpToPx(BUBBLE_SIZE_DP)
-        val maxX = (screenWidth() - bubblePx).coerceAtLeast(0)
-        val targetX = if (bubbleParams.x + bubblePx / 2 < screenWidth() / 2) 0 else maxX
+        val maxX = (screenWidth - bubblePx).coerceAtLeast(0)
+        val targetX = if (bubbleParams.x + bubblePx / 2 < screenWidth / 2) 0 else maxX
 
         snapAnimator?.cancel()
         snapAnimator =
@@ -382,5 +439,8 @@ internal class OverlayWindowController(
         // P2.1c: Panel-Fenstergröße als Bruchteil des Bildschirms (Vollsteuerung).
         const val PANEL_WIDTH_FRACTION = 0.92f
         const val PANEL_HEIGHT_FRACTION = 0.70f
+
+        // P2.5-E4: Mindesthöhe des Panels bei offener Tastatur (damit Header + Eingabe passen).
+        const val MIN_PANEL_HEIGHT_DP = 220f
     }
 }
