@@ -28,7 +28,7 @@ kotlinxCoroutines = "1.9.0"
 # --- ML Kit (gebündelt, offline) ---
 mlkitTextRecognition = "16.0.1"
 # --- Key-Security ---
-tink = "1.15.0"
+tink = "1.24.0"
 # --- Bilder ---
 coil = "2.7.0"
 # --- Qualität ---
